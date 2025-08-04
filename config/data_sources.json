@@ -1,0 +1,51 @@
+{
+  "data_sources": {
+    "yahoo": {
+      "name": "Yahoo Finance",
+      "description": "Free stock, ETF, forex, and crypto data",
+      "supported_assets": ["stocks", "etfs", "forex", "crypto"],
+      "api_key_required": false,
+      "rate_limit": "2000 requests/hour",
+      "data_quality": "good",
+      "cost": "free"
+    },
+    "polygon": {
+      "name": "Polygon.io",
+      "description": "Professional-grade stock and forex data",
+      "supported_assets": ["stocks", "etfs", "forex", "options"],
+      "api_key_required": true,
+      "api_key_env_var": "POLYGON_API_KEY",
+      "rate_limit": "5 requests/minute (free tier)",
+      "data_quality": "excellent",
+      "cost": "freemium"
+    },
+    "crypto": {
+      "name": "Binance (via CCXT)",
+      "description": "Real-time cryptocurrency exchange data",
+      "supported_assets": ["crypto"],
+      "api_key_required": false,
+      "rate_limit": "1200 requests/minute",
+      "data_quality": "excellent",
+      "cost": "free"
+    },
+    "google_finance": {
+      "name": "Google Finance",
+      "description": "Google's financial data service",
+      "supported_assets": ["stocks", "etfs", "indices"],
+      "api_key_required": false,
+      "rate_limit": "moderate",
+      "data_quality": "good",
+      "cost": "free",
+      "note": "Web scraping based, may require additional parsing"
+    }
+  },
+  "priority_order": ["yahoo", "google_finance", "crypto", "polygon"],
+  "fallback_strategy": "cascade",
+  "asset_type_mapping": {
+    "stocks": ["yahoo", "google_finance", "polygon"],
+    "etfs": ["google_finance", "yahoo", "polygon"],
+    "forex": ["google_finance", "yahoo", "polygon"],
+    "crypto": ["crypto", "yahoo"],
+    "indices": ["google_finance", "yahoo"]
+  }
+}
