@@ -262,11 +262,11 @@ class JMoneyTelegramBot:
                 
                 emoji = self._get_signal_emoji(decision)
                 message += f"{i}. {emoji} *{ticker}* - {decision}\n"
-                message += f"   🎯 Entry: {entry}\n"
-                message += f"   📊 Confidence: {confidence:.1f}/10\n"
-                message += f"   💡 Catalyst: {catalyst[:50]}...\n"
-                message += f"   ⏰ Time: {timestamp}\n\n"
-        
+                message += f"   • Entry: {entry}\n"
+                message += f"   • Confidence: {confidence:.1f}/10\n"
+                message += f"   • Catalyst: {catalyst[:50]}...\n"
+                message += f"   • Time: {timestamp}\n\n"
+
         update.message.reply_text(message, parse_mode=ParseMode.MARKDOWN)
     
     def boost_command(self, update: Update, context: CallbackContext):
@@ -310,11 +310,11 @@ class JMoneyTelegramBot:
                 
                 emoji = self._get_signal_emoji(decision)
                 message += f"{i}. {emoji} *{ticker}* - {decision}\n"
-                message += f"   🚀 Entry: {entry}\n"
-                message += f"   📊 Confidence: {confidence:.1f}/10\n"
-                message += f"   💡 Catalyst: {catalyst[:50]}...\n"
-                message += f"   ⏰ Time: {timestamp}\n\n"
-        
+                message += f"   • Entry: {entry}\n"
+                message += f"   • Confidence: {confidence:.1f}/10\n"
+                message += f"   • Catalyst: {catalyst[:50]}...\n"
+                message += f"   • Time: {timestamp}\n\n"
+
         update.message.reply_text(message, parse_mode=ParseMode.MARKDOWN)
 
     def caution_command(self, update: Update, context: CallbackContext):
@@ -357,11 +357,11 @@ class JMoneyTelegramBot:
                 
                 emoji = self._get_signal_emoji(decision)
                 message += f"{i}. {emoji} *{ticker}* - {decision}\n"
-                message += f"   ⚠️ Entry: {entry}\n"
-                message += f"   📊 Confidence: {confidence:.1f}/10\n"
-                message += f"   🚨 ZS-10+ Risk: {zs_score}/10\n"
-                message += f"   ⏰ Time: {timestamp}\n\n"
-        
+                message += f"   • Entry: {entry}\n"
+                message += f"   • Confidence: {confidence:.1f}/10\n"
+                message += f"   • ZS-10+ Risk: {zs_score}/10\n"
+                message += f"   • Time: {timestamp}\n\n"
+
         update.message.reply_text(message, parse_mode=ParseMode.MARKDOWN)
 
     def neutral_command(self, update: Update, context: CallbackContext):
@@ -404,11 +404,11 @@ class JMoneyTelegramBot:
                 
                 emoji = self._get_signal_emoji(decision)
                 message += f"{i}. {emoji} *{ticker}* - {decision}\n"
-                message += f"   ⚪ Entry: {entry}\n"
-                message += f"   📊 Confidence: {confidence:.1f}/10\n"
-                message += f"   📈 Technical: {technical_score}/10\n"
-                message += f"   ⏰ Time: {timestamp}\n\n"
-        
+                message += f"   • Entry: {entry}\n"
+                message += f"   • Confidence: {confidence:.1f}/10\n"
+                message += f"   • Technical: {technical_score}/10\n"
+                message += f"   • Time: {timestamp}\n\n"
+
         update.message.reply_text(message, parse_mode=ParseMode.MARKDOWN)
 
     def fetch_command(self, update: Update, context: CallbackContext):
