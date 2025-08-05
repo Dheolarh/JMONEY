@@ -33,21 +33,29 @@ class TradeCalculator:
             print(f"    Error calculating ATR: {e}")
             return 0.0
 
-    def calculate_trade_parameters(self, market_data: pd.DataFrame, signal: str) -> dict:
+    def calculate_trade_parameters(self, market_data: pd.DataFrame, signal: str, confidence_score: float = 5.0) -> dict:
         """
         Calculates Entry, Stop Loss, and Take Profit levels.
 
         Args:
             market_data: A pandas DataFrame with OHLCV data.
-            signal: The trading signal ('Buy', 'Sell', 'Avoid', etc.).
+            signal: The trading signal ('Buy', 'Sell', 'Neutral', 'Avoid', etc.).
+            confidence_score: Signal confidence score (0-10) for dynamic strategy
 
         Returns:
-            A dictionary with the calculated trade parameters.
+            A dictionary with the calculated trade parameters and TP strategy.
         """
-        params = {"entry": "N/A", "stop_loss": "N/A", "tp1": "N/A", "tp2": "N/A"}
+        params = {
+            "entry": "N/A", 
+            "stop_loss": "N/A", 
+            "tp1": "N/A", 
+            "tp2": "N/A",
+            "tp_strategy": "Manual exit required"
+        }
 
-        if signal not in ["Buy", "Sell"] or market_data is None or len(market_data) < 20:
-            return params # Not enough data or no valid signal
+        # Only calculate full trade parameters for actionable signals, but show reference levels for all
+        if market_data is None or len(market_data) < 20:
+            return params # Not enough data
 
         try:
             high_col = 'High' if 'High' in market_data.columns else 'high'
@@ -67,28 +75,49 @@ class TradeCalculator:
                 entry_price = market_data[close_col].iloc[-1]
                 atr = entry_price * 0.02  # 2% fallback
             
-            # Use the latest closing price as the entry point
+            # Use the latest closing price as the entry point (reference for all signals)
             entry_price = market_data[close_col].iloc[-1]
-            
             risk_per_share = atr * self.atr_multiplier
-
-            if signal == "Buy":
-                stop_loss = entry_price - risk_per_share
-                tp1 = entry_price + (risk_per_share * self.tp1_rr)
-                tp2 = entry_price + (risk_per_share * self.tp2_rr)
-            elif signal == "Sell":
-                stop_loss = entry_price + risk_per_share
-                tp1 = entry_price - (risk_per_share * self.tp1_rr)
-                tp2 = entry_price - (risk_per_share * self.tp2_rr)
-
+            
             # Format to a reasonable number of decimal places
             decimals = 4 if entry_price < 10 else 2
-            params = {
-                "entry": round(entry_price, decimals),
-                "stop_loss": round(stop_loss, decimals),
-                "tp1": round(tp1, decimals),
-                "tp2": round(tp2, decimals)
-            }
+            
+            # Always show entry price as reference
+            params["entry"] = round(entry_price, decimals)
+            
+            # For actionable signals (Buy/Sell), calculate full trade parameters
+            if signal in ["Buy", "Sell"]:
+                if signal == "Buy":
+                    stop_loss = entry_price - risk_per_share
+                    tp1 = entry_price + (risk_per_share * self.tp1_rr)
+                    tp2 = entry_price + (risk_per_share * self.tp2_rr)
+                elif signal == "Sell":
+                    stop_loss = entry_price + risk_per_share
+                    tp1 = entry_price - (risk_per_share * self.tp1_rr)
+                    tp2 = entry_price - (risk_per_share * self.tp2_rr)
+                
+                params.update({
+                    "stop_loss": round(stop_loss, decimals),
+                    "tp1": round(tp1, decimals),
+                    "tp2": round(tp2, decimals)
+                })
+            
+            else:
+                # For non-actionable signals (Neutral, Hold, Avoid), show reference levels based on confidence
+                # Calculate hypothetical Buy levels for reference
+                hypothetical_stop_loss = entry_price - risk_per_share
+                hypothetical_tp1 = entry_price + (risk_per_share * self.tp1_rr)
+                hypothetical_tp2 = entry_price + (risk_per_share * self.tp2_rr)
+                
+                params.update({
+                    "stop_loss": f"${round(hypothetical_stop_loss, decimals)} (ref)",
+                    "tp1": f"${round(hypothetical_tp1, decimals)} (ref)",
+                    "tp2": f"${round(hypothetical_tp2, decimals)} (ref)"
+                })
+            
+            # Calculate dynamic TP strategy for all signals based on confidence
+            tp_strategy = self._calculate_tp_strategy(confidence_score, risk_per_share, entry_price)
+            params["tp_strategy"] = tp_strategy
         
         except Exception as e:
             print(f"    [WARNING] Could not calculate trade parameters: {e}")
@@ -128,3 +157,54 @@ class TradeCalculator:
         except Exception as e:
             print(f"    [WARNING] ATR calculation failed: {e}")
             return 0
+
+    def _calculate_tp_strategy(self, confidence_score: float, risk_amount: float, entry_price: float) -> str:
+        """
+        Calculate dynamic TP strategy based on confidence score and risk-reward metrics.
+        
+        Args:
+            confidence_score: Signal confidence (0-10)
+            risk_amount: Risk per share (ATR-based)
+            entry_price: Entry price
+            
+        Returns:
+            Dynamic TP strategy string
+        """
+        try:
+            # Calculate risk percentage relative to entry price
+            risk_percentage = (risk_amount / entry_price) * 100
+            
+            # Dynamic strategy based on confidence and risk
+            if confidence_score >= 8.5:
+                # Very high confidence - be more aggressive
+                if risk_percentage < 3:  # Low risk
+                    return "TP1 30% / TP2 70%"  # Let winners run
+                else:  # Higher risk
+                    return "TP1 40% / TP2 60%"
+                    
+            elif confidence_score >= 7.5:
+                # High confidence - balanced approach
+                if risk_percentage < 2:  # Very low risk
+                    return "TP1 40% / TP2 60%"
+                else:
+                    return "TP1 50% / TP2 50%"
+                    
+            elif confidence_score >= 6.0:
+                # Medium confidence - more conservative
+                if risk_percentage < 2:
+                    return "TP1 60% / TP2 40%"
+                else:
+                    return "TP1 70% / TP2 30%"
+                    
+            else:
+                # Lower confidence - very conservative
+                return "TP1 80% / TP2 20%"
+                
+        except Exception:
+            # Fallback to simple confidence-based strategy
+            if confidence_score > 7.5:
+                return "TP1 50% / TP2 50%"
+            elif confidence_score > 6.0:
+                return "TP1 70% / TP2 30%"
+            else:
+                return "TP1 100%"

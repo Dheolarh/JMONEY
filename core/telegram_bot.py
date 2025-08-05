@@ -733,12 +733,14 @@ All systems operational! 🚀
         if value == 'N/A' or value == '' or value is None:
             return 'N/A'
         
-        # If it's already a string with $, return as is
-        if isinstance(value, str) and '$' in value:
-            return value
-            
-        # Convert to string and add $ if it looks like a number
+        # Convert to string first
         value_str = str(value).strip()
+        
+        # If it's already formatted (contains $ or (ref)), return as is
+        if '$' in value_str or '(ref)' in value_str:
+            return value_str
+            
+        # If it's a valid number, add $ prefix
         if value_str and value_str != 'N/A':
             try:
                 # Try to parse as float to validate it's a number
@@ -785,11 +787,36 @@ All systems operational! 🚀
         # Get JMoney confirmation reason if available
         confirmation_reason = signal_data.get('confirmation_reason', 'Standard criteria met' if jmoney_confirmed else 'Criteria not met')
         
-        # TP Strategy based on signal strength
-        tp_strategy = "TP1 50% / TP2 50%" if confidence_score > 7.5 else "TP1 70% / TP2 30%" if confidence_score > 5.0 else "TP1 100%"
+        # Get TP Strategy - use calculated strategy from trade calculator
+        tp_strategy = signal_data.get('tp_strategy', 'Manual exit required')
         
-        # Format the message according to specification
-        message = f"{emoji} *JMONEY CONFIRMED: {jmoney_confirmed}*\n\n"
+        # If no strategy provided, calculate based on confidence score and available targets
+        if tp_strategy == 'Manual exit required':
+            if tp1 != 'N/A' or tp2 != 'N/A':
+                if tp1 != 'N/A' and tp2 != 'N/A':
+                    # Both targets available - use confidence-based allocation
+                    if confidence_score >= 8.5:
+                        tp_strategy = "TP1 30% / TP2 70%"  # Let winners run
+                    elif confidence_score >= 7.5:
+                        tp_strategy = "TP1 50% / TP2 50%"
+                    elif confidence_score >= 6.0:
+                        tp_strategy = "TP1 70% / TP2 30%"
+                    else:
+                        tp_strategy = "TP1 80% / TP2 20%"
+                elif tp1 != 'N/A' and tp2 == 'N/A':
+                    tp_strategy = "TP1 100%"
+                elif tp1 == 'N/A' and tp2 != 'N/A':
+                    tp_strategy = "TP2 100%"
+            else:
+                # For neutral signals with reference levels, show confidence-based strategy
+                if confidence_score >= 6.0:
+                    tp_strategy = f"If breakout: TP1 70% / TP2 30% (confidence: {confidence_score:.1f}/10)"
+                else:
+                    tp_strategy = f"Monitor for signals (confidence: {confidence_score:.1f}/10)"
+        
+        # Format the message according to specification  
+        signal_type = "ACTIONABLE" if decision in ["Buy", "Sell"] else "REFERENCE"
+        message = f"{emoji} *JMONEY CONFIRMED: {jmoney_confirmed}* ({signal_type})\n\n"
         message += f"• *Ticker*: {ticker}\n"
         message += f"• *Source*: {signal_data.get('source', 'Unknown')}\n"
         message += f"• *Strategy*: {strategy}\n"
@@ -799,6 +826,10 @@ All systems operational! 🚀
         message += f"• *Stop Loss*: {stop_loss}\n"
         message += f"• *TP1 / TP2*: {tp1} / {tp2}\n"
         message += f"• *TP Strategy*: {tp_strategy}\n"
+        
+        # Add reference note for neutral signals
+        if decision not in ["Buy", "Sell"] and ("(ref)" in str(tp1) or "(ref)" in str(tp2)):
+            message += f"• *Note*: Reference levels for potential breakout scenarios\n"
         message += f"• *Macro Score*: {macro_score}/10\n"
         message += f"• *Sentiment Score*: {technical_score}/10\n"  # Using technical as sentiment for now
         message += f"• *Catalyst*: {catalyst_type}\n"

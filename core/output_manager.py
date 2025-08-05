@@ -51,8 +51,8 @@ class OutputManager:
         if value == 'N/A' or value == '' or value is None:
             return 'N/A'
         
-        # If it's already a string with $, return as is
-        if isinstance(value, str) and '$' in value:
+        # If it's already a string with $ (including reference values), return as is
+        if isinstance(value, str) and ('$' in value or '(ref)' in value):
             return value
             
         # Convert to string and add $ if it looks like a number
@@ -80,7 +80,7 @@ class OutputManager:
 
         headers = [
             "Timestamp", "Ticker", "Source", "Signal", "Strategy", "Direction", 
-            "Entry", "Stop Loss", "TP1", "TP2", 
+            "Entry", "Stop Loss", "TP1", "TP2", "TP Strategy",
             "Technical Score", "ZS-10+ Score", "Macro Score", "Sentiment Score",
             "Confidence Score", "Catalyst", "Summary", "JMoney Confirmed", "Reasoning"
         ]
@@ -135,6 +135,7 @@ class OutputManager:
                 "Stop Loss": self._format_monetary_value(s.get('stop_loss', 'N/A')),
                 "TP1": self._format_monetary_value(s.get('tp1', 'N/A')),
                 "TP2": self._format_monetary_value(s.get('tp2', 'N/A')),
+                "TP Strategy": s.get('tp_strategy', 'Manual exit required'),
                 "Technical Score": f"{technical_score}/10",
                 "ZS-10+ Score": f"{zs_score}/10",
                 "Macro Score": f"{macro_score}/10",

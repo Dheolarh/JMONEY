@@ -134,9 +134,17 @@ class DecisionEngine:
             
             asset_with_strategy = self._map_strategy(asset)
             
+            # Calculate confidence score for dynamic TP strategy
+            confidence_score = (
+                asset.get('technical_score', 0) * 0.4 +
+                asset.get('macro_score', 0) * 0.4 +
+                (10 - asset.get('zs10_score', 5)) * 0.2
+            )
+            
             trade_params = self.trade_calculator.calculate_trade_parameters(
                 market_data=asset.get('market_data'),
-                signal=asset_with_strategy.get('signal')
+                signal=asset_with_strategy.get('signal'),
+                confidence_score=confidence_score
             )
             asset_with_strategy.update(trade_params)
             
