@@ -91,7 +91,6 @@ class DataFetcher:
             df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms')
             df.set_index('timestamp', inplace=True)
             
-            # Rename columns to match yfinance format
             df.columns = ['Open', 'High', 'Low', 'Close', 'Volume']
             print(f"    Successfully fetched {len(df)} data points")
             return df
@@ -103,7 +102,6 @@ class DataFetcher:
         """Fetches data from Google Finance via web scraping."""
         print(f"    Fetching '{ticker}' from Google Finance...")
         try:
-            # Google Finance URL format
             url = f"https://www.google.com/finance/quote/{ticker}"
             
             response = requests.get(url, headers=self.headers, timeout=10)
@@ -111,15 +109,11 @@ class DataFetcher:
             
             soup = BeautifulSoup(response.content, 'html.parser')
             
-            # Extract current price (this is a simplified example)
-            # In a real implementation, you'd need to parse historical data
             price_element = soup.find('div', {'data-source': 'PRICE'})
             if not price_element:
                 print(f"    Could not find price data for {ticker}")
                 return None
                 
-            # For now, create a simple single-row DataFrame
-            # A full implementation would require parsing historical data
             current_price = float(price_element.text.replace('$', '').replace(',', ''))
             
             df = pd.DataFrame({
@@ -209,7 +203,7 @@ class DataFetcher:
         Returns:
             A pandas DataFrame with OHLCV data.
         """
-        # Determine which sources to try based on asset type and configuration
+        # Determine which sources based on asset type and configuration
         if preferred_sources:
             sources_to_try = preferred_sources
         else:

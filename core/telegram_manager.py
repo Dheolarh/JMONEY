@@ -71,7 +71,7 @@ class TelegramNotificationManager:
         
         for signal in signals:
             await self.send_signal_notification(signal)
-            await asyncio.sleep(1)  # Rate limiting: 1 second between messages
+            await asyncio.sleep(1)
 
     def send_daily_summary(self):
         """Send daily summary (called by scheduler)."""
@@ -157,7 +157,6 @@ Use `/status` to view system performance.
         """Start the Telegram bot in the background."""
         print("🚀 Starting Telegram bot in background mode...")
         
-        # Start the bot in a separate thread to not block the main process
         import threading
         bot_thread = threading.Thread(target=self.bot.start_bot_polling, daemon=True)
         bot_thread.start()

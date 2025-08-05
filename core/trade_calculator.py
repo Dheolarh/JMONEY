@@ -53,7 +53,6 @@ class TradeCalculator:
             "tp_strategy": "Manual exit required"
         }
 
-        # Only calculate full trade parameters for actionable signals, but show reference levels for all
         if market_data is None or len(market_data) < 20:
             return params # Not enough data
 
@@ -103,7 +102,6 @@ class TradeCalculator:
                 })
             
             else:
-                # For non-actionable signals (Neutral, Hold, Avoid), show reference levels based on confidence
                 # Calculate hypothetical Buy levels for reference
                 hypothetical_stop_loss = entry_price - risk_per_share
                 hypothetical_tp1 = entry_price + (risk_per_share * self.tp1_rr)
@@ -176,32 +174,31 @@ class TradeCalculator:
             
             # Dynamic strategy based on confidence and risk
             if confidence_score >= 8.5:
-                # Very high confidence - be more aggressive
+                # Very high confidence (aggressive)
                 if risk_percentage < 3:  # Low risk
-                    return "TP1 30% / TP2 70%"  # Let winners run
+                    return "TP1 30% / TP2 70%" 
                 else:  # Higher risk
                     return "TP1 40% / TP2 60%"
                     
             elif confidence_score >= 7.5:
-                # High confidence - balanced approach
+                # High confidence (balanced approach)
                 if risk_percentage < 2:  # Very low risk
                     return "TP1 40% / TP2 60%"
                 else:
                     return "TP1 50% / TP2 50%"
                     
             elif confidence_score >= 6.0:
-                # Medium confidence - more conservative
+                # Medium confidence (conservative)
                 if risk_percentage < 2:
                     return "TP1 60% / TP2 40%"
                 else:
                     return "TP1 70% / TP2 30%"
                     
             else:
-                # Lower confidence - very conservative
+                # Lower confidence (very conservative)
                 return "TP1 80% / TP2 20%"
                 
         except Exception:
-            # Fallback to simple confidence-based strategy
             if confidence_score > 7.5:
                 return "TP1 50% / TP2 50%"
             elif confidence_score > 6.0:

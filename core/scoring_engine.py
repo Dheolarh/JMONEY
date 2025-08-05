@@ -135,7 +135,7 @@ class ScoringEngine:
                     close_col = col
             
             if not close_col:
-                close_col = market_data.columns[-1]  # Assume last column is close
+                close_col = market_data.columns[-1] # Fallback to last column if no close found
             
             close_prices = market_data[close_col]
             
@@ -199,7 +199,6 @@ class ScoringEngine:
             asset['zs10_score'] = self.calculate_zs10_score(market_data)
 
             # --- AI-based Score Calculations ---
-            # Get detailed scores from the AI using the new method
             ai_scores = self.analyzer.get_detailed_scores(
                 ticker=asset.get('ticker'),
                 catalyst_headline=asset.get('catalyst')

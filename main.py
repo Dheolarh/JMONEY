@@ -168,7 +168,7 @@ def main():
     print("🚀 Starting JMONEY Trading System...")
     print("📡 Initializing Telegram bot...")
     
-    # Initialize output manager first for Google Sheets access
+    # Initialize output manager for Google Sheets access
     credentials_path = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
     sheet_name = os.getenv("SHEET_NAME")
     output_manager = OutputManager(credentials_path=credentials_path, sheet_name=sheet_name)
@@ -234,7 +234,6 @@ def run_telegram_bot_only():
         print("Press Ctrl+C to stop the bot.")
         
         try:
-            # Keep the bot running
             telegram_manager.bot.updater.idle()
         except KeyboardInterrupt:
             print("\n🛑 Stopping Telegram bot...")
@@ -271,5 +270,5 @@ if __name__ == "__main__":
         else:
             print("❌ Telegram not configured properly")
     else:
-        # Run complete system with both workflow and bot
+        # Run complete system
         main()

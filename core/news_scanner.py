@@ -48,7 +48,7 @@ class NewsScanner:
             print(f"--> Scanning {source_name}...")
             try:
                 response = requests.get(url, headers=self.scrape_headers, timeout=15)
-                response.raise_for_status()  # Checks for HTTP errors like 404 or 500
+                response.raise_for_status()  # Checks for HTTP errors
 
                 soup = BeautifulSoup(response.content, 'html.parser')
                 

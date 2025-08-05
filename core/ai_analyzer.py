@@ -31,7 +31,6 @@ class AIAnalyzer:
         return response_text.strip()
 
     def identify_assets_from_headlines(self, headlines: list[str]) -> list[dict]:
-        # ... (this method remains the same)
         if not self.prompts or "identify_assets" not in self.prompts:
             print("Error: 'identify_assets' prompt not found in config.")
             return []
@@ -41,13 +40,13 @@ class AIAnalyzer:
         print("--> Sending headlines to AI for initial analysis...")
         try:
             response = self.client.chat.completions.create(
-                model="gpt-4o",  # Updated to GPT-4o
+                model="gpt-4o", 
                 messages=[
                     {"role": "system", "content": prompt_config["system_message"]},
                     {"role": "user", "content": final_prompt}
                 ],
-                temperature=0.1,  # Slightly higher for better creativity while maintaining consistency
-                max_tokens=2000   # Increased token limit for more detailed responses
+                temperature=0.1,
+                max_tokens=2000   
             )
             response_text = self._clean_ai_response(response.choices[0].message.content)
             print("    ...initial analysis complete.")
@@ -56,7 +55,6 @@ class AIAnalyzer:
             print(f"    [FAILED] Error during initial AI analysis: {e}")
             return []
 
-    # --- NEW METHOD FOR DETAILED SCORING ---
     def get_detailed_scores(self, ticker: str, catalyst_headline: str) -> dict:
         """
         Performs a detailed AI analysis on a single asset to get specific scores.
@@ -81,13 +79,13 @@ class AIAnalyzer:
         print(f"    --> Performing detailed AI scoring for '{ticker}'...")
         try:
             response = self.client.chat.completions.create(
-                model="gpt-4o",  # Updated to GPT-4o
+                model="gpt-4o",
                 messages=[
                     {"role": "system", "content": prompt_config["system_message"]},
                     {"role": "user", "content": final_prompt}
                 ],
-                temperature=0.1,  # Slightly higher for better creativity while maintaining consistency
-                max_tokens=1500   # Increased token limit for more detailed responses
+                temperature=0.1,
+                max_tokens=1500   
             )
             response_text = self._clean_ai_response(response.choices[0].message.content)
             print("        ...detailed scoring complete.")

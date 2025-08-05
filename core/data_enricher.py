@@ -63,7 +63,6 @@ class DataEnricher:
             
             asset_type, ticker_to_fetch, raw_ticker = self._determine_asset_type(original_ticker)
             
-            # Use the new flexible fetching system
             market_data = self.fetcher.get_data(
                 ticker=ticker_to_fetch, 
                 asset_type=asset_type

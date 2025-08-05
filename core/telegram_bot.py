@@ -79,9 +79,7 @@ class JMoneyTelegramBot:
     def start_command(self, update: Update, context: CallbackContext):
         """Handle /start command."""
         welcome_message = """
-🚀 *Welcome to JMoney Trading Bot!*
-
-Your intelligent trading companion is ready to help you make informed trading decisions.
+🚀 *JMoney Trading Bot!*
 
 *Available Commands:*
 /signals - View recent trading signals
@@ -93,8 +91,6 @@ Your intelligent trading companion is ready to help you make informed trading de
 /fetch - Start new signal analysis workflow
 /status - Check system status
 /help - Show this help message
-
-Let's make some money! 💰
         """
         
         keyboard = [
@@ -119,10 +115,10 @@ Let's make some money! 💰
 ✅ */confirmed* - Show confirmed trade setups  
 ⚡ */boost* - View Boost strategy signals
 🧘 */zen* - View Zen strategy signals
-⚠️ */caution* - View Caution strategy signals
+⚠️ */caution* - View Caution/Short strategy signals
 ⚪ */neutral* - View Neutral strategy signals
-� */fetch* - Start new signal analysis workflow
-�📈 */status* - Check system status
+➰ */fetch* - Start new signal analysis workflow
+📈 */status* - Check system status
 ❓ */help* - Show this help message
 
 *Strategy Types:*
@@ -137,13 +133,6 @@ Let's make some money! 💰
 🟡 *Hold* - Neutral, wait for clarity
 ⚪ *Avoid* - Stay away from this asset
 
-*Risk Management:*
-• Never risk more than 2% per trade
-• Always use stop losses
-• Take profits at predetermined levels
-• Stay disciplined with your strategy
-
-Happy trading! 📈💰
         """
         
         update.message.reply_text(help_text, parse_mode=ParseMode.MARKDOWN)
@@ -193,7 +182,6 @@ Happy trading! 📈💰
         if not all_signals:
             all_signals = self.confirmed_signals
         
-        # Debug: Check what we got from sheets
         self.logger.info(f"Found {len(all_signals)} total signals from sheets")
         for signal in all_signals:
             self.logger.info(f"Signal {signal.get('ticker')}: JMoney Confirmed = {signal.get('jmoney_confirmed')} (type: {type(signal.get('jmoney_confirmed'))})")
@@ -260,8 +248,6 @@ Happy trading! 📈💰
 • Low volatility, high conviction trades
 • Strong institutional backing
 • Minimal retail sentiment spikes
-
-Stay patient, quality setups are coming! 🧘‍♂️
             """
         else:
             message = "🧘 *Zen Strategy Signals*\n\n"
@@ -310,7 +296,6 @@ Stay patient, quality setups are coming! 🧘‍♂️
 • Sector rotation opportunities
 • High-impact market events
 
-Keep scanning, opportunities are coming! ⚡
             """
         else:
             message = "⚡ *Boost Strategy Signals*\n\n"
@@ -327,7 +312,7 @@ Keep scanning, opportunities are coming! ⚡
                 message += f"{i}. {emoji} *{ticker}* - {decision}\n"
                 message += f"   🚀 Entry: {entry}\n"
                 message += f"   📊 Confidence: {confidence:.1f}/10\n"
-                message += f"   � Catalyst: {catalyst[:50]}...\n"
+                message += f"   💡 Catalyst: {catalyst[:50]}...\n"
                 message += f"   ⏰ Time: {timestamp}\n\n"
         
         update.message.reply_text(message, parse_mode=ParseMode.MARKDOWN)
@@ -358,8 +343,6 @@ Keep scanning, opportunities are coming! ⚡
 • Mixed market sentiment
 • Requires tighter stops
 • Lower position sizing recommended
-
-Trade with extra care on these! ⚠️
             """
         else:
             message = "⚠️ *Caution Strategy Signals*\n\n"
@@ -407,8 +390,6 @@ Trade with extra care on these! ⚠️
 • Wait for clearer signals
 • Consider range trading
 • Prepare for direction change
-
-Patience pays in neutral markets! ⚪
             """
         else:
             message = "⚪ *Neutral Strategy Signals*\n\n"
@@ -442,7 +423,7 @@ Patience pays in neutral markets! ⚪
 ⚖️ Calculating scores and strategies...
 🎯 Generating trading signals...
 
-This may take 1-2 minutes. New signals will be sent automatically when ready! ⏳
+This may take 1-2 minutes. New signals will be sent automatically when ready ⏳
             """
             
             update.message.reply_text(message, parse_mode=ParseMode.MARKDOWN)
@@ -511,9 +492,7 @@ Please run the main JMONEY script manually or contact your system administrator.
             timestamp_str = signal.get('timestamp', '')
             if timestamp_str and timestamp_str != 'N/A':
                 try:
-                    # Try to parse different timestamp formats
-                    if ':' in timestamp_str and len(timestamp_str) <= 8:  # Format like "14:30"
-                        # Assume it's from today
+                    if ':' in timestamp_str and len(timestamp_str) <= 8: 
                         signal_time = datetime.now().replace(
                             hour=int(timestamp_str.split(':')[0]),
                             minute=int(timestamp_str.split(':')[1]),
@@ -521,35 +500,32 @@ Please run the main JMONEY script manually or contact your system administrator.
                             microsecond=0
                         )
                     else:
-                        # Try full timestamp format
                         signal_time = datetime.strptime(timestamp_str, '%Y-%m-%d %H:%M:%S')
                     
                     if signal_time >= cutoff_time:
                         recent_count += 1
                 except:
-                    # If parsing fails, count it as recent
                     recent_count += 1
             else:
-                # If no timestamp, count as recent
                 recent_count += 1
         
         status_message = f"""
 📈 *JMoney System Status*
 
-🤖 Bot Status: ✅ Online
-⏰ Last Update: {datetime.now().strftime('%H:%M:%S')}
-📊 Recent Signals (24h): {recent_count}
-✅ Confirmed Trades: {len(confirmed_signals)}
+🤖 Bot Status: ✅ Online\n
+⏰ Last Update: {datetime.now().strftime('%H:%M:%S')}\n
+📊 Recent Signals (24h): {recent_count}\n
+✅ Confirmed Trades: {len(confirmed_signals)}\n
 📋 Total Signals: {len(all_signals)}
 
 🔧 *System Health:*
-• AI Analyzer: ✅ Active
-• Data Feeds: ✅ Connected  
-• Risk Engine: ✅ Running
-• Google Sheets: {'✅ Connected' if self.output_manager else '❌ Offline'}
+• AI Analyzer: ✅ Active\n
+• Data Feeds: ✅ Connected\n
+• Risk Engine: ✅ Running\n
+• Google Sheets: {'✅ Connected' if self.output_manager else '❌ Offline'}\n
 • Notification: ✅ Online
 
-All systems operational! 🚀
+All systems operational
         """
         
         update.message.reply_text(status_message, parse_mode=ParseMode.MARKDOWN)
@@ -599,7 +575,6 @@ All systems operational! 🚀
             if records:
                 available_columns = list(records[0].keys())
                 self.logger.info(f"Available columns in Google Sheets: {available_columns}")
-                # Check for confirmation-related columns
                 confirmation_columns = [col for col in available_columns if 'confirm' in col.lower()]
                 self.logger.info(f"Confirmation-related columns: {confirmation_columns}")
             
@@ -611,11 +586,9 @@ All systems operational! 🚀
             
             for record in records[-20:]:  # Get last 20 records
                 try:
-                    # Debug: Show full record for first few entries
                     if len(signals) < 2:
                         self.logger.info(f"Full record {len(signals)+1}: {record}")
                     
-                    # Parse timestamp
                     timestamp_str = record.get('Timestamp', '')
                     if timestamp_str:
                         signal_time = datetime.strptime(timestamp_str, '%Y-%m-%d %H:%M:%S')
@@ -669,22 +642,21 @@ All systems operational! 🚀
                 self.logger.warning("Bot not initialized, cannot send notification")
                 return False
             
-            # Add timestamp if not present
             if 'timestamp' not in signal_data:
                 signal_data['timestamp'] = datetime.now().strftime('%H:%M:%S')
             
             # Add to recent signals
             self.recent_signals.append(signal_data)
-            if len(self.recent_signals) > 20:  # Keep more signals for strategy filtering
+            if len(self.recent_signals) > 20: 
                 self.recent_signals.pop(0)
             
-            # Check if it's a confirmed signal
+            # Check if signal is confirmed
             jmoney_confirmed = signal_data.get('jmoney_confirmed', False)
             strategy = signal_data.get('strategy', 'Neutral')
             
             if jmoney_confirmed or strategy in ['Boost', 'Zen']:
                 self.confirmed_signals.append(signal_data)
-                if len(self.confirmed_signals) > 10:  # Keep more confirmed signals
+                if len(self.confirmed_signals) > 10: 
                     self.confirmed_signals.pop(0)
             
             # Format notification message
@@ -711,10 +683,10 @@ All systems operational! 🚀
                 self.logger.warning("Bot not initialized, cannot send alert")
                 return False
             
-            # Format the signal notification
+            # Format signal notification
             message = self._format_signal_notification(signal_data)
             
-            # Send the message
+            # Send message
             self.updater.bot.send_message(
                 chat_id=self.chat_id,
                 text=message,
@@ -733,14 +705,11 @@ All systems operational! 🚀
         if value == 'N/A' or value == '' or value is None:
             return 'N/A'
         
-        # Convert to string first
-        value_str = str(value).strip()
-        
-        # If it's already formatted (contains $ or (ref)), return as is
-        if '$' in value_str or '(ref)' in value_str:
-            return value_str
+        # If it's already a string with $ or reference notation, return as is
+        if isinstance(value, str) and ('$' in value or '(ref)' in value):
+            return value
             
-        # If it's a valid number, add $ prefix
+        value_str = str(value).strip()
         if value_str and value_str != 'N/A':
             try:
                 # Try to parse as float to validate it's a number
@@ -753,8 +722,8 @@ All systems operational! 🚀
 
     def _format_signal_notification(self, signal_data: Dict) -> str:
         """Format signal data for Telegram notification in the specified format."""
-        ticker = signal_data.get('ticker', 'Unknown')  # Use 'ticker' instead of 'symbol'
-        decision = signal_data.get('signal', 'Neutral')  # Use 'signal' instead of 'decision'
+        ticker = signal_data.get('ticker', 'Unknown') 
+        decision = signal_data.get('signal', 'Neutral') 
         jmoney_confirmed = signal_data.get('jmoney_confirmed', False)
         
         # Calculate overall confidence score from individual scores
@@ -765,7 +734,6 @@ All systems operational! 🚀
         # Calculate weighted confidence score (out of 10)
         confidence_score = (technical_score * 0.4 + macro_score * 0.4 + (10 - zs_score) * 0.2)
         
-        # Get signal emoji
         emoji = self._get_signal_emoji(decision)
         
         # Determine direction based on decision
@@ -796,7 +764,7 @@ All systems operational! 🚀
                 if tp1 != 'N/A' and tp2 != 'N/A':
                     # Both targets available - use confidence-based allocation
                     if confidence_score >= 8.5:
-                        tp_strategy = "TP1 30% / TP2 70%"  # Let winners run
+                        tp_strategy = "TP1 30% / TP2 70%"
                     elif confidence_score >= 7.5:
                         tp_strategy = "TP1 50% / TP2 50%"
                     elif confidence_score >= 6.0:
@@ -814,9 +782,7 @@ All systems operational! 🚀
                 else:
                     tp_strategy = f"Monitor for signals (confidence: {confidence_score:.1f}/10)"
         
-        # Format the message according to specification  
-        signal_type = "ACTIONABLE" if decision in ["Buy", "Sell"] else "REFERENCE"
-        message = f"{emoji} *JMONEY CONFIRMED: {jmoney_confirmed}* ({signal_type})\n\n"
+        message = f"{emoji} *JMONEY CONFIRMED: {jmoney_confirmed}*\n\n"
         message += f"• *Ticker*: {ticker}\n"
         message += f"• *Source*: {signal_data.get('source', 'Unknown')}\n"
         message += f"• *Strategy*: {strategy}\n"
@@ -826,22 +792,17 @@ All systems operational! 🚀
         message += f"• *Stop Loss*: {stop_loss}\n"
         message += f"• *TP1 / TP2*: {tp1} / {tp2}\n"
         message += f"• *TP Strategy*: {tp_strategy}\n"
-        
-        # Add reference note for neutral signals
-        if decision not in ["Buy", "Sell"] and ("(ref)" in str(tp1) or "(ref)" in str(tp2)):
-            message += f"• *Note*: Reference levels for potential breakout scenarios\n"
         message += f"• *Macro Score*: {macro_score}/10\n"
-        message += f"• *Sentiment Score*: {technical_score}/10\n"  # Using technical as sentiment for now
+        message += f"• *Sentiment Score*: {technical_score}/10\n" 
         message += f"• *Catalyst*: {catalyst_type}\n"
         message += f"• *ZS-10+ Score*: {zs_score}/10\n"
         
-        # Add JMoney confirmation reason
+        # JMoney confirmation reason
         if jmoney_confirmed:
             message += f"• *Confirmation*: ✅ {confirmation_reason}\n"
         else:
             message += f"• *Not Confirmed*: ❌ {confirmation_reason}\n"
         
-        # Add timestamp
         timestamp = datetime.now().strftime('%H:%M:%S')
         message += f"\n⏰ {timestamp}"
         
@@ -862,7 +823,7 @@ All systems operational! 🚀
             message += f"🔴 Sell Signals: {sell_signals}\n"
             message += f"✅ Confirmed Trades: {confirmed_trades}\n\n"
             
-            message += "Keep following your trading plan! 💪"
+            message += "That's all for now, I'll keep you updated with new signals as they come in\n\n"
             
             self.updater.bot.send_message(
                 chat_id=self.chat_id,
@@ -882,11 +843,11 @@ All systems operational! 🚀
             test_message = """
 🧪 *JMoney Bot Test*
 
-✅ Connection successful!
-🤖 Bot is operational
+✅ Connection successful!\n
+🤖 Bot is operational\n
 📱 Notifications enabled
 
-Ready to receive trading signals! 🚀
+Ready to receive trading signals
             """
             
             self.updater.bot.send_message(

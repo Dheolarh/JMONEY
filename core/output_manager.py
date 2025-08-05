@@ -97,8 +97,8 @@ class OutputManager:
         
         for s in signals:
             ticker = s.get('ticker', 'Unknown')
-            catalyst_type = s.get('catalyst_type', 'None')  # Simple category like "JOBS", "EARNINGS", etc.
-            catalyst_headline = s.get('catalyst', s.get('reasoning', 'N/A'))  # Full description for Summary
+            catalyst_type = s.get('catalyst_type', 'None')  
+            catalyst_headline = s.get('catalyst', s.get('reasoning', 'N/A')) 
             timestamp = pd.Timestamp.now().strftime('%Y-%m-%d %H:%M:%S')
             
             is_duplicate = False
