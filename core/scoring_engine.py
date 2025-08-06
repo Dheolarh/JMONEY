@@ -8,12 +8,29 @@ class ScoringEngine:
     Calculates various scores for a given asset based on its market data and catalyst.
     Uses simple technical analysis functions for better compatibility.
     """
-    def __init__(self):
-        """Initializes the ScoringEngine and the AIAnalyzer."""
-        self.analyzer = AIAnalyzer(
-            api_key=os.getenv("OPENAI_KEY"),
-            prompts_path=os.getenv("PROMPTS_PATH", "config/prompts.json")
-        )
+    def __init__(self, analyzer=None):
+        """Initializes the ScoringEngine. Accepts an existing AIAnalyzer or creates one."""
+        if analyzer:
+            self.analyzer = analyzer
+        else:
+            # Fallback: try OpenAI first, then Gemini
+            gemini_api_key = os.getenv("GEMINI_API_KEY")
+            openai_api_key = os.getenv("OPENAI_KEY")
+            
+            if openai_api_key:
+                self.analyzer = AIAnalyzer(
+                    api_key=openai_api_key,
+                    prompts_path=os.getenv("PROMPTS_PATH", "config/prompts.json"),
+                    provider="openai"
+                )
+            elif gemini_api_key:
+                self.analyzer = AIAnalyzer(
+                    api_key=gemini_api_key,
+                    prompts_path=os.getenv("PROMPTS_PATH", "config/prompts.json"),
+                    provider="gemini"
+                )
+            else:
+                raise ValueError("No AI API key found for scoring engine")
 
     def _calculate_rsi(self, prices: pd.Series, period: int = 14) -> pd.Series:
         """Calculate RSI (Relative Strength Index)."""

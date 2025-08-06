@@ -1,16 +1,33 @@
 import os
 import json
 from openai import OpenAI
+import google.generativeai as genai
+from typing import Optional
 
 class AIAnalyzer:
     """
     Uses an AI model to analyze text content like news headlines.
+    Supports both OpenAI and Google Gemini models.
     """
-    def __init__(self, api_key: str, prompts_path: str):
-        if not api_key:
-            raise ValueError("OpenAI API key is required.")
-        self.client = OpenAI(api_key=api_key)
+    def __init__(self, api_key: str, prompts_path: str, provider: str = "openai", model_name: str = None):
+        self.provider = provider.lower()
         self.prompts = self._load_prompts(prompts_path)
+        
+        if self.provider == "openai":
+            if not api_key:
+                raise ValueError("OpenAI API key is required.")
+            self.client = OpenAI(api_key=api_key)
+            self.model_name = model_name or "gpt-4o-mini"
+        elif self.provider == "gemini":
+            if not api_key:
+                raise ValueError("Gemini API key is required.")
+            genai.configure(api_key=api_key)
+            self.model_name = model_name or "gemini-1.5-flash"  # Changed from 2.0 to 1.5 for better quota
+            self.client = genai.GenerativeModel(self.model_name)
+        else:
+            raise ValueError(f"Unsupported provider: {provider}. Use 'openai' or 'gemini'")
+        
+        print(f"AI Analyzer initialized with {self.provider.upper()} ({self.model_name})")
 
     def _load_prompts(self, path: str) -> dict:
         print(f"Loading AI prompts from: {path}")
@@ -25,10 +42,53 @@ class AIAnalyzer:
             return {}
 
     def _clean_ai_response(self, response_text: str) -> str:
-        """Cleans the typical markdown formatting from AI JSON responses."""
+        """Cleans and extracts JSON from AI responses, handling extra content."""
+        import re
+        
+        # Remove markdown code blocks if present
         if response_text.startswith("```json"):
             response_text = response_text[7:-3]
+        elif response_text.startswith("```"):
+            response_text = response_text[3:-3]
+        
+        # Try to find JSON content using regex
+        json_pattern = r'\{.*\}|\[.*\]'
+        json_match = re.search(json_pattern, response_text, re.DOTALL)
+        
+        if json_match:
+            return json_match.group(0).strip()
+        
+        # If no JSON pattern found, return cleaned text
         return response_text.strip()
+    
+    def _call_ai_provider(self, system_message: str, user_prompt: str, max_tokens: int = 2000) -> str:
+        """Unified method to call either OpenAI or Gemini"""
+        if self.provider == "openai":
+            response = self.client.chat.completions.create(
+                model=self.model_name,
+                messages=[
+                    {"role": "system", "content": system_message},
+                    {"role": "user", "content": user_prompt}
+                ],
+                temperature=0.1,
+                max_tokens=max_tokens   
+            )
+            return response.choices[0].message.content
+        
+        elif self.provider == "gemini":
+            # For Gemini, combine system and user messages
+            full_prompt = f"{system_message}\n\n{user_prompt}"
+            response = self.client.generate_content(
+                full_prompt,
+                generation_config=genai.types.GenerationConfig(
+                    temperature=0.1,
+                    max_output_tokens=max_tokens
+                )
+            )
+            return response.text
+        
+        else:
+            raise ValueError(f"Unsupported provider: {self.provider}")
 
     def identify_assets_from_headlines(self, headlines: list[str]) -> list[dict]:
         if not self.prompts or "identify_assets" not in self.prompts:
@@ -37,18 +97,14 @@ class AIAnalyzer:
         headlines_text = "\n".join(headlines)
         prompt_config = self.prompts["identify_assets"]
         final_prompt = prompt_config["user_prompt_template"].format(headlines=headlines_text)
-        print("--> Sending headlines to AI for initial analysis...")
+        print(f"--> Sending headlines to {self.provider.upper()} for initial analysis...")
         try:
-            response = self.client.chat.completions.create(
-                model="gpt-4o", 
-                messages=[
-                    {"role": "system", "content": prompt_config["system_message"]},
-                    {"role": "user", "content": final_prompt}
-                ],
-                temperature=0.1,
-                max_tokens=2000   
+            response_text = self._call_ai_provider(
+                prompt_config["system_message"],
+                final_prompt,
+                max_tokens=2000
             )
-            response_text = self._clean_ai_response(response.choices[0].message.content)
+            response_text = self._clean_ai_response(response_text)
             print("    ...initial analysis complete.")
             return json.loads(response_text)
         except Exception as e:
@@ -76,18 +132,14 @@ class AIAnalyzer:
             catalyst_headline=catalyst_headline
         )
         
-        print(f"    --> Performing detailed AI scoring for '{ticker}'...")
+        print(f"    --> Performing detailed {self.provider.upper()} scoring for '{ticker}'...")
         try:
-            response = self.client.chat.completions.create(
-                model="gpt-4o",
-                messages=[
-                    {"role": "system", "content": prompt_config["system_message"]},
-                    {"role": "user", "content": final_prompt}
-                ],
-                temperature=0.1,
-                max_tokens=1500   
+            response_text = self._call_ai_provider(
+                prompt_config["system_message"],
+                final_prompt,
+                max_tokens=1500
             )
-            response_text = self._clean_ai_response(response.choices[0].message.content)
+            response_text = self._clean_ai_response(response_text)
             print("        ...detailed scoring complete.")
             return json.loads(response_text)
         except Exception as e:

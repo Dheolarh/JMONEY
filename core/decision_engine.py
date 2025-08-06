@@ -144,7 +144,15 @@ class DecisionEngine:
             trade_params = self.trade_calculator.calculate_trade_parameters(
                 market_data=asset.get('market_data'),
                 signal=asset_with_strategy.get('signal'),
-                confidence_score=confidence_score
+                confidence_score=confidence_score,
+                ticker=asset.get('symbol', 'UNKNOWN'),
+                catalyst=asset.get('catalyst', ''),
+                scores={
+                    'technical': asset.get('technical_score', 5),
+                    'macro': asset.get('macro_score', 5),
+                    'zs10': asset.get('zs10_score', 5),
+                    'sentiment': asset.get('sentiment_score', 5)
+                }
             )
             asset_with_strategy.update(trade_params)
             
