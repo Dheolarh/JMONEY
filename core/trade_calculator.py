@@ -349,23 +349,22 @@ Respond with ONLY: "TP1 X.X% / TP2 Y.Y%" where X.X+Y.Y=100.0
             # Make AI call based on provider
             if self.ai_provider == "openai":
                 response = self.ai_client.chat.completions.create(
-                    model="gpt-4o-mini",  # Using mini for faster response
+                    model="gpt-4o-mini", 
                     messages=[
                         {"role": "system", "content": "You are a quantitative trading expert focused on optimal profit-taking strategies. Provide concise, data-driven recommendations."},
                         {"role": "user", "content": prompt}
                     ],
-                    temperature=0.9,  # High creativity for maximum variance
-                    max_tokens=50     # Short response expected
+                    temperature=0.9, 
+                    max_tokens=50     
                 )
                 ai_strategy = response.choices[0].message.content.strip()
                 
             elif self.ai_provider == "gemini":
-                # For Gemini, combine system and user messages
                 full_prompt = "You are a quantitative trading expert focused on optimal profit-taking strategies. Provide concise, data-driven recommendations.\n\n" + prompt
                 response = self.ai_client.generate_content(
                     full_prompt,
                     generation_config=genai.types.GenerationConfig(
-                        temperature=0.9,  # High creativity for maximum variance
+                        temperature=0.9,
                         max_output_tokens=50
                     )
                 )
@@ -377,14 +376,12 @@ Respond with ONLY: "TP1 X.X% / TP2 Y.Y%" where X.X+Y.Y=100.0
             # Validate AI response format and percentages
             if "TP1" in ai_strategy and "TP2" in ai_strategy and "%" in ai_strategy:
                 try:
-                    # Extract percentages to validate they add to ~100
                     import re
                     percentages = re.findall(r'(\d+(?:\.\d+)?)%', ai_strategy)
                     if len(percentages) == 2:
                         tp1_pct = float(percentages[0])
                         tp2_pct = float(percentages[1])
                         total = tp1_pct + tp2_pct
-                        # Allow any reasonable TP1 percentage (5-95%) and ensure they sum to ~100
                         if 99.5 <= total <= 100.5 and 5.0 <= tp1_pct <= 95.0:
                             print(f"    🤖 AI TP Strategy: {ai_strategy}")
                             return ai_strategy
@@ -423,14 +420,12 @@ Respond with ONLY: "TP1 X.X% / TP2 Y.Y%" where X.X+Y.Y=100.0
             confidence_factor = (10 - confidence_score) / 10  # 0-1, higher when confidence is lower
             risk_factor = min(risk_percentage / 5.0, 1.0)     # 0-1, higher when risk is higher
             
-            # Calculate base TP1 from data (not preset ranges)
+            # Calculate base TP1 from data
             base_tp1 = 30 + (confidence_factor * 40) + (risk_factor * 20)
             
-            # Add some randomness for variance
             random_offset = random.uniform(-8.0, 8.0)
             tp1 = base_tp1 + random_offset
             
-            # Ensure reasonable bounds
             tp1 = max(10.0, min(90.0, tp1))
             tp1 = round(tp1, 1)
             tp2 = round(100.0 - tp1, 1)

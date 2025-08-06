@@ -22,7 +22,7 @@ class AIAnalyzer:
             if not api_key:
                 raise ValueError("Gemini API key is required.")
             genai.configure(api_key=api_key)
-            self.model_name = model_name or "gemini-1.5-flash"  # Changed from 2.0 to 1.5 for better quota
+            self.model_name = model_name or "gemini-1.5-flash" 
             self.client = genai.GenerativeModel(self.model_name)
         else:
             raise ValueError(f"Unsupported provider: {provider}. Use 'openai' or 'gemini'")
@@ -76,7 +76,6 @@ class AIAnalyzer:
             return response.choices[0].message.content
         
         elif self.provider == "gemini":
-            # For Gemini, combine system and user messages
             full_prompt = f"{system_message}\n\n{user_prompt}"
             response = self.client.generate_content(
                 full_prompt,
