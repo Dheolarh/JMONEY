@@ -14,7 +14,6 @@ from core.decision_engine import DecisionEngine
 from core.output_manager import OutputManager
 from core.telegram_manager import create_telegram_manager
 
-# Simple inline logger for immediate use
 class SimpleLogger:
     def __init__(self):
         os.makedirs("logs", exist_ok=True)

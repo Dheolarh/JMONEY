@@ -45,13 +45,11 @@ class AIAnalyzer:
         """Cleans and extracts JSON from AI responses, handling extra content."""
         import re
         
-        # Remove markdown code blocks if present
         if response_text.startswith("```json"):
             response_text = response_text[7:-3]
         elif response_text.startswith("```"):
             response_text = response_text[3:-3]
         
-        # Try to find JSON content using regex
         json_pattern = r'\{.*\}|\[.*\]'
         json_match = re.search(json_pattern, response_text, re.DOTALL)
         
