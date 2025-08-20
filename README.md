@@ -483,15 +483,3 @@ python main.py --test-telegram
    ```bash
    python main.py
    ```
-
-## 🤝 Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request.
-
-## 📄 License
-
-This project is licensed under the MIT License - see the LICENSE file for details.
-
----
-
-**⚠️ Disclaimer:** This system is for educational and informational purposes only. Always conduct your own research and consult with financial advisors before making trading decisions.
