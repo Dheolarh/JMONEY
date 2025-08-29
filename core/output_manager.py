@@ -82,7 +82,8 @@ class OutputManager:
             "Timestamp", "Ticker", "Source", "Signal", "Strategy", "Direction", 
             "Entry", "Stop Loss", "TP1", "TP2", "TP Strategy",
             "Technical Score", "ZS-10+ Score", "Macro Score", "Sentiment Score",
-            "Confidence Score", "Catalyst", "Summary", "JMoney Confirmed", "Reasoning"
+            "Confidence Score", "Catalyst", "Summary", "JMoney Confirmed", "Reasoning",
+            "Outcome", "Profit/Loss (%)", "Exit Price", "Exit Timestamp"
         ]
         
         existing_data = []

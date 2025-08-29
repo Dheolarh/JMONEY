@@ -384,5 +384,18 @@ if __name__ == "__main__":
             asyncio.run(telegram_manager.test_notification())
         else:
             print("❌ Telegram not configured properly")
+    elif len(sys.argv) > 1 and sys.argv[1] == "--run-optimization":
+        print("⚙️ Running optimization process...")
+        load_dotenv()
+        credentials_path = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
+        sheet_name = os.getenv("SHEET_NAME")
+        output_manager = OutputManager(credentials_path=credentials_path, sheet_name=sheet_name)
+        
+        from core.backtester import Backtester
+        from core.optimizer import Optimizer
+        
+        backtester = Backtester(output_manager)
+        optimizer = Optimizer(backtester, "config/scoring_metrics.json")
+        optimizer.run_optimization()
     else:
         main()
