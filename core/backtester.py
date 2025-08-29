@@ -73,17 +73,24 @@ class Backtester:
     def _simulate_trade(self, market_data: pd.DataFrame, entry: float, sl: float, tp: float, signal: str) -> float | None:
         """
         Simulates a single trade against historical data.
-        Returns the profit/loss percentage, or None if the trade is still open.
+        Returns the profit/loss percentage, or the mark-to-market P/L if trade is still open at the end.
         """
+        signal = signal.lower()
         for index, row in market_data.iterrows():
-            if signal == 'Buy':
+            if signal == 'buy':
                 if row['Low'] <= sl:
                     return -abs((entry - sl) / entry) * 100 
                 if row['High'] >= tp:
                     return abs((tp - entry) / entry) * 100
-            elif signal == 'Sell':
+            elif signal == 'sell':
                 if row['High'] >= sl:
                     return -abs((sl - entry) / entry) * 100 
                 if row['Low'] <= tp:
                     return abs((entry - tp) / entry) * 100
-        return None 
+
+        last_close = market_data.iloc[-1]['Close']
+        if signal == 'buy':
+            return (last_close - entry) / entry * 100
+        elif signal == 'sell':
+            return (entry - last_close) / entry * 100
+        return None
