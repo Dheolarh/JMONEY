@@ -115,10 +115,24 @@ def run_workflow():
         metrics_path = os.getenv("METRICS_PATH", "config/scoring_metrics.json")
         credentials_path = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
         sheet_name = os.getenv("SHEET_NAME")
-        
+        output_manager = OutputManager(credentials_path=credentials_path, sheet_name=sheet_name)
+
         log_info("Configuration loaded successfully")
         log_info("--- Starting Trading Signal System ---")
         print("--- Starting Trading Signal System ---")
+
+        # --- STEP 0: Run Optimizer (Self-learning feedback loop) ---
+        log_workflow_stage("Running optimizer for self-learning feedback loop")
+        print("\nSTEP 0: Running optimizer for self-learning feedback loop...")
+        from core.optimizer import Optimizer
+        analyzer_for_optimizer = AIAnalyzer(
+            api_key=ai_api_key,
+            prompts_path=prompts_path,
+            provider=ai_provider
+        )
+        optimizer = Optimizer(output_manager, metrics_path, ai_analyzer=analyzer_for_optimizer)
+        optimizer.run_optimization(iterations=1)
+        print("--- ✅ STEP 8 COMPLETE --- (Optimizer run complete)")
         
         # --- STEP 1: Scan for news headlines ---
         log_workflow_stage("Scanning for news headlines")
@@ -211,7 +225,6 @@ def run_workflow():
         # --- STEP 6: Export final signals to Google Sheets ---
         log_workflow_stage("Exporting signals to Google Sheets")
         print("\nSTEP 6: Exporting signals to Google Sheets...")
-        output_manager = OutputManager(credentials_path=credentials_path, sheet_name=sheet_name)
         export_success = output_manager.export_signals_to_sheets(final_signals)
         if export_success:
             log_info(f"Successfully exported {len(final_signals)} signals to Google Sheets")
@@ -247,7 +260,7 @@ def run_workflow():
             log_info("Telegram not configured - skipping notifications")
             print("⚠️ Telegram not configured - skipping notifications")
             print("--- ⚠️ STEP 7 SKIPPED ---")
-        
+
         print("\n--- WORKFLOW FINISHED ---")
         log_workflow_end("trading_analysis", success=True)
         log_info("Trading analysis workflow completed successfully")
@@ -384,17 +397,5 @@ if __name__ == "__main__":
             asyncio.run(telegram_manager.test_notification())
         else:
             print("❌ Telegram not configured properly")
-    elif len(sys.argv) > 1 and sys.argv[1] == "--run-optimization":
-        print("⚙️ Running optimization process...")
-        load_dotenv()
-        credentials_path = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
-        sheet_name = os.getenv("SHEET_NAME")
-        metrics_path = os.getenv("METRICS_PATH", "config/scoring_metrics.json")
-        output_manager = OutputManager(credentials_path=credentials_path, sheet_name=sheet_name)
-        
-        from core.optimizer import Optimizer
-        
-        optimizer = Optimizer(output_manager, metrics_path)
-        optimizer.run_optimization()
     else:
         main()

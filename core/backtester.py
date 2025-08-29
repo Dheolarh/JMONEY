@@ -1,3 +1,4 @@
+from unittest import signals
 import pandas as pd
 from .data_fetcher import DataFetcher
 from .output_manager import OutputManager
@@ -12,57 +13,62 @@ class Backtester:
         self.data_fetcher = DataFetcher()
 
     def run_backtest(self, signals: list[dict], days_to_backtest: int = 7) -> dict:
-        """
-        Runs a backtest on a given list of signals.
-
-        Args:
-            signals: A list of signal dictionaries to backtest.
-            days_to_backtest: The number of days of historical data to check for each signal.
-
-        Returns:
-            A dictionary with backtesting results.
-        """
-        print(f"--- Running Backtest on {len(signals)} signals ---")
-        
-        results = {
-            "total_trades": 0,
-            "wins": 0,
-            "losses": 0,
-            "win_rate": 0,
-            "total_profit_loss": 0.0
-        }
-
+        results = []
+        skipped = 0
+        processed = 0
+    
         for signal in signals:
-            if signal.get('Signal') not in ['Buy', 'Sell']:
+            ticker = signal.get('Ticker') or signal.get('ticker')
+            data = self.data_fetcher.get_data(ticker)
+            if data is None or data.empty:
+                skipped += 1
+                continue
+    
+            processed += 1
+    
+            entry_price = signal.get('Entry') or signal.get('entry_price')
+            sl = signal.get('Stop Loss') or signal.get('stop_loss')
+            tp = signal.get('TP1') or signal.get('take_profit')
+            direction = signal.get('Signal') or signal.get('Direction') or signal.get('signal')
+
+            print(f"Signal: {ticker}, Entry: {entry_price}, SL: {sl}, TP: {tp}, Dir: {direction}")
+
+            if not all([ticker, entry_price, sl, tp, direction]):
+                skipped += 1
                 continue
 
-            ticker = signal.get('Ticker')
-            entry_price = float(str(signal.get('Entry')).replace('$', ''))
-            stop_loss = float(str(signal.get('Stop Loss')).replace('$', ''))
-            take_profit = float(str(signal.get('TP1')).replace('$', ''))
-            
-            # Fetch historical data for the backtest period
-            market_data = self.data_fetcher.get_data(ticker, asset_type='stocks') # Assuming stocks for simplicity
-            
-            if market_data is None or market_data.empty:
+            data = self.data_fetcher.get_data(ticker)
+            if data is None or data.empty:
+                skipped += 1
                 continue
 
-            # Simulate the trade
-            outcome = self._simulate_trade(market_data, entry_price, stop_loss, take_profit, signal['Signal'])
+            processed += 1
 
-            if outcome is not None:
-                results["total_trades"] += 1
-                if outcome > 0:
-                    results["wins"] += 1
-                else:
-                    results["losses"] += 1
-                results["total_profit_loss"] += outcome
-        
-        if results["total_trades"] > 0:
-            results["win_rate"] = (results["wins"] / results["total_trades"]) * 100
-
-        print("--- Backtest Complete ---")
-        return results
+            try:
+                entry_price = float(entry_price)
+                sl = float(sl)
+                tp = float(tp)
+            except (TypeError, ValueError):
+                skipped += 1
+                continue
+    
+            trade_result = self._simulate_trade(data, entry_price, sl, tp, direction)
+            if trade_result is not None:
+                results.append(trade_result)
+    
+        win_count = sum(1 for r in results if r == 1)
+        total = len(results)
+        win_rate = (win_count / total * 100) if total > 0 else 0
+    
+        print(f"Backtest: Skipped {skipped} unsupported tickers or invalid signals, processed {processed} signals, {total} trades evaluated.")
+    
+        return {
+            "win_rate": win_rate,
+            "total_trades": total,
+            "wins": win_count,
+            "losses": total - win_count,
+            "skipped": skipped
+        }
 
     def _simulate_trade(self, market_data: pd.DataFrame, entry: float, sl: float, tp: float, signal: str) -> float | None:
         """
@@ -72,12 +78,12 @@ class Backtester:
         for index, row in market_data.iterrows():
             if signal == 'Buy':
                 if row['Low'] <= sl:
-                    return -abs((entry - sl) / entry) * 100  # Loss
+                    return -abs((entry - sl) / entry) * 100 
                 if row['High'] >= tp:
-                    return abs((tp - entry) / entry) * 100  # Win
+                    return abs((tp - entry) / entry) * 100
             elif signal == 'Sell':
                 if row['High'] >= sl:
-                    return -abs((sl - entry) / entry) * 100  # Loss
+                    return -abs((sl - entry) / entry) * 100 
                 if row['Low'] <= tp:
-                    return abs((entry - tp) / entry) * 100  # Win
+                    return abs((entry - tp) / entry) * 100
         return None 

@@ -82,8 +82,7 @@ class OutputManager:
             "Timestamp", "Ticker", "Source", "Signal", "Strategy", "Direction", 
             "Entry", "Stop Loss", "TP1", "TP2", "TP Strategy",
             "Technical Score", "ZS-10+ Score", "Macro Score", "Sentiment Score",
-            "Confidence Score", "Catalyst", "Summary", "JMoney Confirmed", "Reasoning",
-            "Outcome", "Profit/Loss (%)", "Exit Price", "Exit Timestamp"
+            "Confidence Score", "Catalyst", "Summary", "JMoney Confirmed", "Reasoning"
         ]
         
         existing_data = []
@@ -152,7 +151,8 @@ class OutputManager:
             print(f"    Skipped {duplicates_skipped} duplicate entries")
         
         df = pd.DataFrame(data_to_export, columns=headers)
-        
+        df = df.fillna('N/A')
+
         try:
             # Get existing data
             existing_data = worksheet.get_all_records()
