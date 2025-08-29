@@ -2,8 +2,8 @@
   "jmoney_confirmation": {
     "required_conditions": 3,
     "rules": {
-      "technical_score": 8,
-      "macro_score": 6
+      "technical_score": 6.0,
+      "macro_score": 5.0
     }
   }
 }

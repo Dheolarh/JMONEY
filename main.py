@@ -389,13 +389,12 @@ if __name__ == "__main__":
         load_dotenv()
         credentials_path = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
         sheet_name = os.getenv("SHEET_NAME")
+        metrics_path = os.getenv("METRICS_PATH", "config/scoring_metrics.json")
         output_manager = OutputManager(credentials_path=credentials_path, sheet_name=sheet_name)
         
-        from core.backtester import Backtester
         from core.optimizer import Optimizer
         
-        backtester = Backtester(output_manager)
-        optimizer = Optimizer(backtester, "config/scoring_metrics.json")
+        optimizer = Optimizer(output_manager, metrics_path)
         optimizer.run_optimization()
     else:
         main()
