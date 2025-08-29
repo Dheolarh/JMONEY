@@ -341,6 +341,23 @@ The system now calculates dynamic position sizing strategies for ALL signals:
 - **TP1/TP2:** Risk-reward ratio based (NOT score-dependent)
 - **TP Strategy:** Confidence score dependent (score-dependent)
 
+## 🧠 Self-Learning Module
+
+JMONEY now includes a self-learning module that can backtest past performance and automatically adjust its scoring weights over time.
+
+### How It Works
+
+1.  **Performance Tracking**: The system stores the outcome of each trade (win/loss, profit %) in the Google Sheet.
+2.  **Backtesting**: A backtesting engine simulates past trades to calculate performance metrics like win rate and profit factor.
+3.  **Optimization**: An optimization algorithm uses the backtesting results to fine-tune the scoring weights in `config/scoring_metrics.json` to improve future performance.
+
+### How to Use
+
+To run the optimization process, use the following command:
+
+```bash
+python main.py --run-optimization
+
 ## 🛠️ Editable Configuration Files
 
 ### A) `config/sources.json` - News Sources
