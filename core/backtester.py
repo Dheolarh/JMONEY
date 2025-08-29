@@ -80,4 +80,4 @@ class Backtester:
                     return -abs((sl - entry) / entry) * 100  # Loss
                 if row['Low'] <= tp:
                     return abs((entry - tp) / entry) * 100  # Win
-        return None # Trade still open
+        return None 

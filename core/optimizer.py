@@ -19,7 +19,6 @@ class Optimizer:
         """
         print("--- Starting Optimization ---")
 
-        # Define the parameter grid to search
         param_grid = {
             'technical_score': np.arange(6.0, 9.5, 0.5),
             'macro_score': np.arange(5.0, 8.5, 0.5)
@@ -36,7 +35,6 @@ class Optimizer:
 
         all_signals = worksheet.get_all_records()
 
-        # Initialize the DecisionEngine once with the correct path
         decision_engine = DecisionEngine(metrics_path=self.metrics_path)
 
         # --- Grid Search ---
@@ -55,14 +53,9 @@ class Optimizer:
                     }
                 }
                 
-                # Directly overwrite the metrics attribute for this iteration
                 decision_engine.metrics = temp_metrics
                 
-                # Re-run the confirmation logic on the signals
-                # For this example, we'll just use the backtester on all signals
-                # A more advanced implementation would re-run the full decision engine
-                
-                # For this example, we are assuming all signals are confirmed for simplicity
+
                 backtest_results = self.backtester.run_backtest(all_signals)
 
                 # Evaluate performance (e.g., based on win rate)
@@ -74,7 +67,6 @@ class Optimizer:
         print(f"Best Win Rate: {best_performance:.2f}%")
         print(f"Best Parameters: {best_params}")
 
-        # Update the actual metrics file with the best parameters found
         final_metrics = {
             "jmoney_confirmation": {
                 "required_conditions": 3,
