@@ -5,6 +5,9 @@ import json
 from openai import OpenAI
 import google.generativeai as genai
 
+from dotenv import load_dotenv
+load_dotenv()
+
 class TradeCalculator:
     """
     Calculates dynamic trade parameters like Stop Loss and Take Profit
@@ -29,18 +32,30 @@ class TradeCalculator:
         self.ai_client = None
         
         try:
+            import os
+            testing_mode = os.getenv("TESTING_MODE", "false").lower() == "true"
             openai_api_key = os.environ.get("OPENAI_KEY")
-            if openai_api_key:
-                self.ai_client = OpenAI(api_key=openai_api_key)
-                self.ai_provider = "openai"
-                self.ai_enabled = True
-                print("    AI-driven TP strategy enabled with OpenAI")
-            else:
-                # Fallback to Gemini
-                gemini_api_key = os.environ.get("GEMINI_API_KEY")
-                if gemini_api_key:
+            gemini_api_key = os.environ.get("GEMINI_API_KEY")
+            if testing_mode:
+                if not gemini_api_key:
+                    self.ai_client = None
+                    self.ai_enabled = False
+                    print("    TESTING_MODE is enabled but no GEMINI_API_KEY found, using fallback TP strategy")
+                else:
                     genai.configure(api_key=gemini_api_key)
-                    self.ai_client = genai.GenerativeModel("gemini-1.5-flash") 
+                    self.ai_client = genai.GenerativeModel("gemini-2.5-flash")
+                    self.ai_provider = "gemini"
+                    self.ai_enabled = True
+                    print("    AI-driven TP strategy enabled with Gemini (TESTING_MODE)")
+            else:
+                if openai_api_key:
+                    self.ai_client = OpenAI(api_key=openai_api_key)
+                    self.ai_provider = "openai"
+                    self.ai_enabled = True
+                    print("    AI-driven TP strategy enabled with OpenAI")
+                elif gemini_api_key:
+                    genai.configure(api_key=gemini_api_key)
+                    self.ai_client = genai.GenerativeModel("gemini-2.5-flash")
                     self.ai_provider = "gemini"
                     self.ai_enabled = True
                     print("    AI-driven TP strategy enabled with Gemini")

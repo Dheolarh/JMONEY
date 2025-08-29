@@ -4,29 +4,40 @@ from openai import OpenAI
 import google.generativeai as genai
 from typing import Optional
 
+from dotenv import load_dotenv
+load_dotenv()
+
 class AIAnalyzer:
     """
     Uses an AI model to analyze text content like news headlines.
     Supports both OpenAI and Google Gemini models.
     """
     def __init__(self, api_key: str, prompts_path: str, provider: str = "openai", model_name: str = None):
-        self.provider = provider.lower()
+        import os
+        testing_mode = os.getenv("TESTING_MODE", "false").lower() == "true"
         self.prompts = self._load_prompts(prompts_path)
-        
-        if self.provider == "openai":
-            if not api_key:
-                raise ValueError("OpenAI API key is required.")
-            self.client = OpenAI(api_key=api_key)
-            self.model_name = model_name or "gpt-4o-mini"
-        elif self.provider == "gemini":
+        if testing_mode:
             if not api_key:
                 raise ValueError("Gemini API key is required.")
+            self.provider = "gemini"
             genai.configure(api_key=api_key)
-            self.model_name = model_name or "gemini-1.5-flash" 
+            self.model_name = model_name or "gemini-2.5-flash"
             self.client = genai.GenerativeModel(self.model_name)
         else:
-            raise ValueError(f"Unsupported provider: {provider}. Use 'openai' or 'gemini'")
-        
+            self.provider = provider.lower()
+            if self.provider == "openai":
+                if not api_key:
+                    raise ValueError("OpenAI API key is required.")
+                self.client = OpenAI(api_key=api_key)
+                self.model_name = model_name or "gpt-4o-mini"
+            elif self.provider == "gemini":
+                if not api_key:
+                    raise ValueError("Gemini API key is required.")
+                genai.configure(api_key=api_key)
+                self.model_name = model_name or "gemini-2.5-flash"
+                self.client = genai.GenerativeModel(self.model_name)
+            else:
+                raise ValueError(f"Unsupported provider: {provider}. Use 'openai' or 'gemini'")
         print(f"AI Analyzer initialized with {self.provider.upper()} ({self.model_name})")
 
     def _load_prompts(self, path: str) -> dict:

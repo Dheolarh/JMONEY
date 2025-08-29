@@ -3,34 +3,45 @@ import numpy as np
 from .ai_analyzer import AIAnalyzer
 import os
 
+from dotenv import load_dotenv
+load_dotenv()
+
 class ScoringEngine:
     """
     Calculates various scores for a given asset based on its market data and catalyst.
     Uses simple technical analysis functions for better compatibility.
     """
     def __init__(self, analyzer=None):
-        """Initializes the ScoringEngine. Accepts an existing AIAnalyzer or creates one."""
+        import os
         if analyzer:
             self.analyzer = analyzer
         else:
-            # Fallback: try OpenAI first, then Gemini
+            testing_mode = os.getenv("TESTING_MODE", "false").lower() == "true"
             gemini_api_key = os.getenv("GEMINI_API_KEY")
             openai_api_key = os.getenv("OPENAI_KEY")
-            
-            if openai_api_key:
-                self.analyzer = AIAnalyzer(
-                    api_key=openai_api_key,
-                    prompts_path=os.getenv("PROMPTS_PATH", "config/prompts.json"),
-                    provider="openai"
-                )
-            elif gemini_api_key:
+            if testing_mode:
+                if not gemini_api_key:
+                    raise ValueError("TESTING_MODE is enabled but no GEMINI_API_KEY found for scoring engine")
                 self.analyzer = AIAnalyzer(
                     api_key=gemini_api_key,
                     prompts_path=os.getenv("PROMPTS_PATH", "config/prompts.json"),
                     provider="gemini"
                 )
             else:
-                raise ValueError("No AI API key found for scoring engine")
+                if openai_api_key:
+                    self.analyzer = AIAnalyzer(
+                        api_key=openai_api_key,
+                        prompts_path=os.getenv("PROMPTS_PATH", "config/prompts.json"),
+                        provider="openai"
+                    )
+                elif gemini_api_key:
+                    self.analyzer = AIAnalyzer(
+                        api_key=gemini_api_key,
+                        prompts_path=os.getenv("PROMPTS_PATH", "config/prompts.json"),
+                        provider="gemini"
+                    )
+                else:
+                    raise ValueError("No AI API key found for scoring engine")
 
     def _calculate_rsi(self, prices: pd.Series, period: int = 14) -> pd.Series:
         """Calculate RSI (Relative Strength Index)."""

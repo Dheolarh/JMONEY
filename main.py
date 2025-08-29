@@ -90,6 +90,8 @@ def run_workflow():
         # Try OpenAI first, fallback to Gemini if needed
         gemini_api_key = os.getenv("GEMINI_API_KEY")
         openai_api_key = os.getenv("OPENAI_KEY")
+        print(f"[DEBUG] GEMINI_API_KEY: {repr(gemini_api_key)}")
+        print(f"[DEBUG] OPENAI_KEY: {repr(openai_api_key)}")
         
         # Select AI provider - OpenAI first
         if openai_api_key:
@@ -364,29 +366,23 @@ if __name__ == "__main__":
     import sys
     
     if len(sys.argv) > 1 and sys.argv[1] == "--bot-only":
-        # Run Telegram bot interactively (legacy mode)
-        print("🚀 Starting JMONEY Telegram Bot in interactive mode...")
+        print("� Starting JMONEY Telegram Bot in interactive mode...")
         load_dotenv()  
         run_telegram_bot_only()
     elif len(sys.argv) > 1 and sys.argv[1] == "--workflow-only":
-        # Run workflow once and exit
         print("🔄 Running JMONEY workflow once...")
         load_dotenv()  
         run_workflow()
     elif len(sys.argv) > 1 and sys.argv[1] == "--test-telegram":
-        # Test Telegram notifications
         print("🧪 Testing Telegram notifications...")
         load_dotenv()  
-        # Initialize output manager for Google Sheets access
         credentials_path = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
         sheet_name = os.getenv("SHEET_NAME")
         output_manager = OutputManager(credentials_path=credentials_path, sheet_name=sheet_name)
-        
         telegram_manager = create_telegram_manager(output_manager=output_manager)
         if telegram_manager:
             asyncio.run(telegram_manager.test_notification())
         else:
             print("❌ Telegram not configured properly")
     else:
-        # Run complete system
         main()
