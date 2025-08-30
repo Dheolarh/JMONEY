@@ -132,7 +132,7 @@ def run_workflow():
         )
         optimizer = Optimizer(output_manager, metrics_path, ai_analyzer=analyzer_for_optimizer)
         optimizer.run_optimization(iterations=1)
-        print("--- ✅ STEP 8 COMPLETE --- (Optimizer run complete)")
+        print("--- ✅ STEP 0 COMPLETE --- (Optimizer run complete)")
         
         # --- STEP 1: Scan for news headlines ---
         log_workflow_stage("Scanning for news headlines")
