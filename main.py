@@ -60,7 +60,8 @@ def run_workflow():
 
         # --- STEP 3: Enrich assets with market data ---
         logger.start_section("STEP 3: DATA ENRICHMENT")
-        enricher = DataEnricher()
+        # FIX: Pass the 'analyzer' instance to the DataEnricher
+        enricher = DataEnricher(analyzer=analyzer)
         enriched_assets = enricher.enrich_assets(identified_assets)
         if not enriched_assets:
             logger.info("Could not enrich any assets with market data. Workflow complete.")
@@ -151,7 +152,7 @@ def main():
         logger.success("System is now running continuously!")
         logger.info("Send /start to your Telegram bot to begin.")
         telegram_manager.bot.start_bot_polling()
-        while True: time.sleep(1) # Keep main thread alive
+        while True: time.sleep(1)
     else:
         logger.fail("Could not start Telegram bot. Exiting.")
 

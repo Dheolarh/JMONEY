@@ -68,7 +68,6 @@ class AIAnalyzer:
         if json_match:
             return json_match.group(0).strip()
         
-        # If no JSON pattern found, return cleaned text
         return response_text.strip()
     
     def _call_ai_provider(self, system_message: str, user_prompt: str, max_tokens: int = 2000) -> str:
@@ -116,7 +115,6 @@ class AIAnalyzer:
             response_text = self._clean_ai_response(response_text)
             print("    ...initial analysis complete.")
             
-            # Extract source and add it to the asset dictionary
             assets = json.loads(response_text)
             for asset in assets:
                 catalyst = asset.get('catalyst', '')
@@ -129,16 +127,32 @@ class AIAnalyzer:
             print(f"    [FAILED] Error during initial AI analysis: {e}")
             return []
 
+    def get_ticker_details(self, ticker: str) -> dict:
+        """
+        Uses AI to determine the asset type and correct ticker format.
+        """
+        if not self.prompts or "enrich_ticker" not in self.prompts:
+            print("Error: 'enrich_ticker' prompt not found in config.")
+            return {}
+            
+        prompt_config = self.prompts["enrich_ticker"]
+        final_prompt = prompt_config["user_prompt_template"].format(ticker=ticker)
+        
+        try:
+            response_text = self._call_ai_provider(
+                prompt_config["system_message"],
+                final_prompt,
+                max_tokens=100
+            )
+            response_text = self._clean_ai_response(response_text)
+            return json.loads(response_text)
+        except Exception as e:
+            print(f"    [FAILED] AI enrichment failed for '{ticker}': {e}")
+            return {}
+
     def get_detailed_scores(self, ticker: str, catalyst_headline: str) -> dict:
         """
         Performs a detailed AI analysis on a single asset to get specific scores.
-
-        Args:
-            ticker: The asset's ticker symbol.
-            catalyst_headline: The news headline related to the asset.
-
-        Returns:
-            A dictionary containing the macro_score, sentiment_score, and catalyst_type.
         """
         if not self.prompts or "score_asset" not in self.prompts:
             print("Error: 'score_asset' prompt not found in config.")
