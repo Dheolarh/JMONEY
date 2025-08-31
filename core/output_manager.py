@@ -46,6 +46,16 @@ class OutputManager:
             print(f"An error occurred while accessing the sheet: {e}")
             return None
 
+    def _get_signal_emoji(self, decision: str) -> str:
+        """Get emoji for signal decision."""
+        emoji_map = {
+            'Buy': '🟢',
+            'Sell': '🔴', 
+            'Hold': '🟡',
+            'Avoid': '⚪'
+        }
+        return emoji_map.get(decision, '⚪')
+
     def _format_monetary_value(self, value):
         """Format monetary values with dollar sign."""
         if value == 'N/A' or value == '' or value is None:
@@ -79,7 +89,7 @@ class OutputManager:
         print(f"--> Exporting {len(signals)} signals to Google Sheet: '{self.sheet_name}'")
 
         headers = [
-            "Timestamp", "Ticker", "Source", "Signal", "Strategy", "Direction", 
+            "Timestamp", "Validee", "Ticker", "Source", "Signal", "Strategy", "Direction", 
             "Entry", "Stop Loss", "TP1", "TP2", "TP Strategy",
             "Technical Score", "ZS-10+ Score", "Macro Score", "Sentiment Score",
             "Confidence Score", "Catalyst", "Summary", "JMoney Confirmed", "Reasoning"
@@ -126,6 +136,7 @@ class OutputManager:
             
             data_to_export.append({
                 "Timestamp": timestamp,
+                "Validee": self._get_signal_emoji(signal),
                 "Ticker": ticker,
                 "Source": s.get('source', 'Unknown'),
                 "Signal": signal,
