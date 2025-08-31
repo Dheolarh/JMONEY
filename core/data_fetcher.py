@@ -19,17 +19,19 @@ class DataFetcher:
         self.polygon_api_key = os.environ.get("POLYGON_API_KEY")
         
         # Initialize crypto exchange based on config
-        self.crypto_exchange = None
-        crypto_source = self.config.get('asset_type_mapping', {}).get('crypto', [])
-        if crypto_source:
-            exchange_name = self.config['data_sources'][crypto_source[0]].get('exchange', 'binance')
-            try:
-                exchange_class = getattr(ccxt, exchange_name)
-                self.crypto_exchange = exchange_class()
-                print(f"Initialized crypto exchange: {exchange_name}")
-            except Exception as e:
-                print(f"Warning: Could not initialize crypto exchange '{exchange_name}': {e}")
-            
+        self.crypto_exchanges = {}
+        crypto_sources = self.config.get('asset_type_mapping', {}).get('crypto', [])
+        for source in crypto_sources:
+            if source in self.config['data_sources']:
+                exchange_name = self.config['data_sources'][source].get('exchange')
+                if exchange_name:
+                    try:
+                        exchange_class = getattr(ccxt, exchange_name)
+                        self.crypto_exchanges[source] = exchange_class()
+                        print(f"Initialized crypto exchange: {exchange_name} for source {source}")
+                    except Exception as e:
+                        print(f"Warning: Could not initialize crypto exchange '{exchange_name}': {e}")
+
         # Headers for web scraping
         self.headers = {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
@@ -63,9 +65,14 @@ class DataFetcher:
             }
         }
 
-    def _fetch_yahoo(self, ticker: str) -> Optional[pd.DataFrame]:
+    def _fetch_yahoo(self, ticker: str, asset_type: str) -> Optional[pd.DataFrame]:
         """Fetches data from Yahoo Finance."""
         print(f"    Fetching '{ticker}' from Yahoo Finance...")
+        
+        # Adjust ticker for forex
+        if asset_type == 'forex':
+            ticker = f"{ticker}=X"
+
         try:
             ticker_obj = yf.Ticker(ticker)
             hist = ticker_obj.history(period="90d", interval="1h")
@@ -78,23 +85,24 @@ class DataFetcher:
             print(f"    Error fetching {ticker} from Yahoo: {e}")
             return None
 
-    def _fetch_crypto(self, ticker: str) -> Optional[pd.DataFrame]:
+    def _fetch_crypto(self, ticker: str, source: str) -> Optional[pd.DataFrame]:
         """Fetches data from the configured crypto exchange."""
-        if not self.crypto_exchange:
-            print("    Crypto exchange not available")
+        exchange = self.crypto_exchanges.get(source)
+        if not exchange:
+            print(f"    Crypto exchange for source '{source}' not available")
             return None
             
-        print(f"    Fetching '{ticker}' from {self.crypto_exchange.name}...")
+        print(f"    Fetching '{ticker}' from {exchange.name}...")
         
         try:
             # Attempt to fetch with the original ticker format first
-            ohlcv = self.crypto_exchange.fetch_ohlcv(ticker, timeframe='1h', limit=500)
+            ohlcv = exchange.fetch_ohlcv(ticker, timeframe='1h', limit=500)
             
             # If that fails, try replacing '/' with '-' (common alternative format)
             if not ohlcv:
                 alt_ticker = ticker.replace('/', '-')
                 print(f"    ...ticker not found, trying alternative format: {alt_ticker}")
-                ohlcv = self.crypto_exchange.fetch_ohlcv(alt_ticker, timeframe='1h', limit=500)
+                ohlcv = exchange.fetch_ohlcv(alt_ticker, timeframe='1h', limit=500)
 
             if not ohlcv:
                 print(f"    No data found for {ticker}")
@@ -108,7 +116,7 @@ class DataFetcher:
             print(f"    Successfully fetched {len(df)} data points")
             return df
         except Exception as e:
-            print(f"    Error fetching {ticker} from {self.crypto_exchange.name}: {e}")
+            print(f"    Error fetching {ticker} from {exchange.name}: {e}")
             return None
 
     def _fetch_google_finance(self, ticker: str) -> Optional[pd.DataFrame]:
@@ -249,7 +257,13 @@ class DataFetcher:
             
             # Try to fetch data from this source
             try:
-                data = self._fetch_from_source(source, ticker)
+                # Correctly format crypto tickers for Yahoo Finance
+                if source == 'yahoo' and asset_type == 'crypto':
+                    fetch_ticker = ticker.replace('/', '-')
+                else:
+                    fetch_ticker = ticker
+
+                data = self._fetch_from_source(source, fetch_ticker, asset_type)
                 if data is not None and not data.empty:
                     print(f"    ✅ Successfully fetched from {source}")
                     return data
@@ -262,16 +276,16 @@ class DataFetcher:
         print(f"    ❌ Failed to fetch data for '{ticker}' from all available sources")
         return None
 
-    def _fetch_from_source(self, source: str, ticker: str) -> Optional[pd.DataFrame]:
+    def _fetch_from_source(self, source: str, ticker: str, asset_type: str) -> Optional[pd.DataFrame]:
         """Route to the appropriate fetcher method based on source name."""
         source_methods = {
-            'yahoo': self._fetch_yahoo,
+            'yahoo': lambda t: self._fetch_yahoo(t, asset_type),
             'polygon': self._fetch_polygon,
-            'crypto': self._fetch_crypto,
+            'crypto': lambda t: self._fetch_crypto(t, source),
             'google_finance': self._fetch_google_finance,
-            'coinbase': self._fetch_crypto,
-            'kucoin': self._fetch_crypto,
-            'kraken': self._fetch_crypto
+            'coinbase': lambda t: self._fetch_crypto(t, source),
+            'kucoin': lambda t: self._fetch_crypto(t, source),
+            'kraken': lambda t: self._fetch_crypto(t, source)
         }
         
         method = source_methods.get(source)

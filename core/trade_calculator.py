@@ -32,7 +32,7 @@ class TradeCalculator:
         return atr if not pd.isna(atr) else (close.iloc[-1] * 0.02)
 
     def calculate_trade_parameters(self, market_data: pd.DataFrame, signal: str, confidence_score: float) -> dict:
-        """Calculates Entry, SL, TP, and Position Size."""
+        """Calculates Entry, SL, TP, and Position Size for all signals."""
         params = {"entry": "N/A", "stop_loss": "N/A", "tp1": "N/A", "tp2": "N/A", "position_size": "N/A", "tp_strategy": "N/A"}
         if market_data is None or len(market_data) < 20: return params
 
@@ -48,30 +48,52 @@ class TradeCalculator:
             decimals = 4 if entry_price < 10 else 2
             params["entry"] = round(entry_price, decimals)
             
-            if signal in ["Buy", "Sell"]:
-                stop_loss = entry_price - risk_per_share if signal == "Buy" else entry_price + risk_per_share
-                
-                # Dynamic Risk-Reward Ratios based on confidence
-                tp1_rr = 1.0 + (confidence_score / 10.0) # Ranges from 1.0 to 2.0
-                tp2_rr = 2.0 + (confidence_score / 5.0)  # Ranges from 2.0 to 4.0
-                
-                tp1 = entry_price + (risk_per_share * tp1_rr) if signal == "Buy" else entry_price - (risk_per_share * tp1_rr)
-                tp2 = entry_price + (risk_per_share * tp2_rr) if signal == "Buy" else entry_price - (risk_per_share * tp2_rr)
-                
+            # Always calculate reference levels, even for Neutral signals
+            stop_loss_long = entry_price - risk_per_share
+            stop_loss_short = entry_price + risk_per_share
+
+            tp1_rr = 1.0 + (confidence_score / 10.0) # Ranges from 1.0 to 2.0
+            tp2_rr = 2.0 + (confidence_score / 5.0)  # Ranges from 2.0 to 4.0
+
+            tp1_long = entry_price + (risk_per_share * tp1_rr)
+            tp2_long = entry_price + (risk_per_share * tp2_rr)
+            tp1_short = entry_price - (risk_per_share * tp1_rr)
+            tp2_short = entry_price - (risk_per_share * tp2_rr)
+
+            if signal == "Buy":
                 params.update({
-                    "stop_loss": round(stop_loss, decimals),
-                    "tp1": round(tp1, decimals),
-                    "tp2": round(tp2, decimals),
-                    "tp_strategy": self._get_tp_strategy(confidence_score),
-                    "position_size": self.calculate_position_size(entry_price, stop_loss)
+                    "stop_loss": round(stop_loss_long, decimals),
+                    "tp1": round(tp1_long, decimals),
+                    "tp2": round(tp2_long, decimals),
+                    "position_size": self.calculate_position_size(entry_price, stop_loss_long)
                 })
+            elif signal == "Sell":
+                params.update({
+                    "stop_loss": round(stop_loss_short, decimals),
+                    "tp1": round(tp1_short, decimals),
+                    "tp2": round(tp2_short, decimals),
+                    "position_size": self.calculate_position_size(entry_price, stop_loss_short)
+                })
+            else: # For "Hold", "Avoid", "Neutral"
+                params.update({
+                    "stop_loss": f"{round(stop_loss_long, decimals)} (ref)",
+                    "tp1": f"{round(tp1_long, decimals)} (ref)",
+                    "tp2": f"{round(tp2_long, decimals)} (ref)",
+                    "position_size": "N/A" # No position for neutral
+                })
+            
+            params["tp_strategy"] = self._get_tp_strategy(confidence_score, signal)
+
         except Exception as e:
             print(f"    [WARNING] Could not calculate trade parameters: {e}")
 
         return params
         
-    def _get_tp_strategy(self, confidence_score: float) -> str:
+    def _get_tp_strategy(self, confidence_score: float, signal: str) -> str:
         """Determines the TP allocation strategy based on confidence."""
+        if signal not in ["Buy", "Sell"]:
+            return f"Monitor for signals (confidence: {confidence_score:.1f}/10)"
+
         if confidence_score >= 8.5: return "TP1 30% / TP2 70%"
         if confidence_score >= 7.5: return "TP1 50% / TP2 50%"
         if confidence_score >= 6.0: return "TP1 70% / TP2 30%"

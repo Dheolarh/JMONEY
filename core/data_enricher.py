@@ -12,6 +12,7 @@ class DataEnricher:
         # Define patterns for asset type detection
         self.asset_patterns = [
             {'type': 'forex', 'pattern': re.compile(r'^[A-Z]{3}/[A-Z]{3}$')},
+            # Corrected crypto pattern to handle "/"
             {'type': 'crypto', 'pattern': re.compile(r'^[A-Z0-9]+/(USDT|BUSD|BTC|ETH|USDC|DAI)$')},
             {'type': 'indices', 'pattern': re.compile(r'^(SPY|QQQ|DJI|IXIC|RUT|VIX)$')},
             {'type': 'stocks', 'pattern': re.compile(r'^[A-Z]{1,5}$')} # Default for stocks
@@ -39,6 +40,10 @@ class DataEnricher:
                     formatted_ticker = f"{upper_ticker.replace('/', '')}=X"
                     return asset_type, formatted_ticker, upper_ticker
                 
+                # For crypto, the ticker is already in the correct format for ccxt
+                if asset_type == 'crypto':
+                    return asset_type, upper_ticker, upper_ticker
+
                 return asset_type, upper_ticker, upper_ticker
         
         # Default to stocks if no other pattern matches

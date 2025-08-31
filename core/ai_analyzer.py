@@ -3,6 +3,7 @@ import json
 from openai import OpenAI
 import google.generativeai as genai
 from typing import Optional
+import re
 
 from dotenv import load_dotenv
 load_dotenv()
@@ -21,7 +22,7 @@ class AIAnalyzer:
                 raise ValueError("Gemini API key is required.")
             self.provider = "gemini"
             genai.configure(api_key=api_key)
-            self.model_name = model_name or "gemini-2.5-flash"
+            self.model_name = model_name or "gemini-1.5-flash"
             self.client = genai.GenerativeModel(self.model_name)
         else:
             self.provider = provider.lower()
@@ -34,7 +35,7 @@ class AIAnalyzer:
                 if not api_key:
                     raise ValueError("Gemini API key is required.")
                 genai.configure(api_key=api_key)
-                self.model_name = model_name or "gemini-2.5-flash"
+                self.model_name = model_name or "gemini-1.5-flash"
                 self.client = genai.GenerativeModel(self.model_name)
             else:
                 raise ValueError(f"Unsupported provider: {provider}. Use 'openai' or 'gemini'")
@@ -114,7 +115,16 @@ class AIAnalyzer:
             )
             response_text = self._clean_ai_response(response_text)
             print("    ...initial analysis complete.")
-            return json.loads(response_text)
+            
+            # Extract source and add it to the asset dictionary
+            assets = json.loads(response_text)
+            for asset in assets:
+                catalyst = asset.get('catalyst', '')
+                source_match = re.match(r'\[(.*?)\]', catalyst)
+                if source_match:
+                    asset['source'] = source_match.group(1)
+            return assets
+            
         except Exception as e:
             print(f"    [FAILED] Error during initial AI analysis: {e}")
             return []
