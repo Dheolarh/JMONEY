@@ -3,7 +3,7 @@
     "yahoo": {
       "name": "Yahoo Finance",
       "description": "Free stock, ETF, forex, and crypto data",
-      "supported_assets": ["stocks", "etfs", "forex", "crypto"],
+      "supported_assets": ["stocks", "etfs", "forex", "crypto", "indices"],
       "api_key_required": false,
       "rate_limit": "2000 requests/hour",
       "data_quality": "good",
@@ -59,10 +59,40 @@
       "cost": "free",
       "exchange": "kraken"
     },
+    "bybit": {
+      "name": "Bybit (via CCXT)",
+      "description": "Real-time cryptocurrency exchange data",
+      "supported_assets": ["crypto"],
+      "api_key_required": false,
+      "rate_limit": "Varies",
+      "data_quality": "excellent",
+      "cost": "free",
+      "exchange": "bybit"
+    },
+    "gateio": {
+      "name": "Gate.io (via CCXT)",
+      "description": "Real-time cryptocurrency exchange data",
+      "supported_assets": ["crypto"],
+      "api_key_required": false,
+      "rate_limit": "Varies",
+      "data_quality": "good",
+      "cost": "free",
+      "exchange": "gateio"
+    },
+    "mexc": {
+      "name": "MEXC (via CCXT)",
+      "description": "Real-time cryptocurrency exchange data",
+      "supported_assets": ["crypto"],
+      "api_key_required": false,
+      "rate_limit": "Varies",
+      "data_quality": "good",
+      "cost": "free",
+      "exchange": "mexc"
+    },
     "google_finance": {
       "name": "Google Finance",
       "description": "Google's financial data service",
-      "supported_assets": ["stocks", "etfs", "indices"],
+      "supported_assets": ["stocks", "etfs", "indices", "forex"],
       "api_key_required": false,
       "rate_limit": "moderate",
       "data_quality": "good",
@@ -75,8 +105,8 @@
   "asset_type_mapping": {
     "stocks": ["yahoo", "google_finance", "polygon"],
     "etfs": ["google_finance", "yahoo", "polygon"],
-    "forex": ["google_finance", "yahoo", "polygon"],
-    "crypto": ["crypto", "coinbase", "kucoin", "kraken", "yahoo"],
-    "indices": ["google_finance", "yahoo"]
+    "forex": ["yahoo", "google_finance", "polygon"],
+    "crypto": ["yahoo", "crypto", "coinbase", "kucoin", "kraken", "bybit", "gateio", "mexc"],
+    "indices": ["yahoo", "google_finance"]
   }
 }

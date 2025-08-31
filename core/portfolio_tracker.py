@@ -2,7 +2,7 @@ import json
 import pandas as pd
 from datetime import datetime
 from .data_fetcher import DataFetcher
-import os # Import the os module
+import os
 
 class PortfolioTracker:
     """
@@ -15,34 +15,45 @@ class PortfolioTracker:
         self.portfolio_path = portfolio_path
         self.data_fetcher = DataFetcher()
 
-        # --- FIX: Ensure the data directory exists ---
+        # Ensure the data directory exists
         portfolio_dir = os.path.dirname(self.portfolio_path)
         if portfolio_dir:
             os.makedirs(portfolio_dir, exist_ok=True)
-        # ---------------------------------------------
         
         self.portfolio = self._load_portfolio()
 
     def _load_portfolio(self) -> dict:
-        """Loads the portfolio from a JSON file."""
+        """Loads the portfolio from a JSON file, creating it if it doesn't exist."""
         try:
             with open(self.portfolio_path, 'r') as f:
                 return json.load(f)
         except (FileNotFoundError, json.JSONDecodeError):
-            return {"trades": [], "summary": {}}
+            # If the file doesn't exist or is empty, create a default structure
+            print(f"    '{self.portfolio_path}' not found or invalid. Creating a new one.")
+            default_portfolio = {"trades": [], "summary": {}}
+            self._save_portfolio(default_portfolio)
+            return default_portfolio
 
-    def _save_portfolio(self):
+    def _save_portfolio(self, data_to_save=None):
         """Saves the portfolio to a JSON file."""
+        if data_to_save is None:
+            data_to_save = self.portfolio
+            
         with open(self.portfolio_path, 'w') as f:
-            json.dump(self.portfolio, f, indent=2)
+            json.dump(data_to_save, f, indent=2)
 
     def add_trade(self, signal: dict):
         """Adds a new trade to the portfolio."""
-        # Clean the monetary values before adding them
         try:
-            entry_price = float(str(signal.get('entry', 0)).replace('$', '').strip())
-            stop_loss = float(str(signal.get('stop_loss', 0)).replace('$', '').strip())
-            take_profit = float(str(signal.get('tp1', 0)).replace('$', '').strip())
+            # Clean monetary values before processing
+            entry_price_str = str(signal.get('entry', '0')).split(' ')[0].replace('$', '').strip()
+            stop_loss_str = str(signal.get('stop_loss', '0')).split(' ')[0].replace('$', '').strip()
+            take_profit_str = str(signal.get('tp1', '0')).split(' ')[0].replace('$', '').strip()
+
+            entry_price = float(entry_price_str)
+            stop_loss = float(stop_loss_str)
+            take_profit = float(take_profit_str)
+            
         except (ValueError, TypeError):
             print(f"    ...skipping adding trade for {signal.get('ticker')} due to invalid price format.")
             return
@@ -65,7 +76,7 @@ class PortfolioTracker:
     def update_open_trades(self):
         """Updates the status of all open trades."""
         print("--> Updating status of open trades...")
-        trades_to_check = [trade for trade in self.portfolio["trades"] if trade["status"] == "open"]
+        trades_to_check = [trade for trade in self.portfolio.get("trades", []) if trade.get("status") == "open"]
         
         if not trades_to_check:
             print("    ...no open trades to update.")
@@ -81,7 +92,6 @@ class PortfolioTracker:
 
     def _check_trade_status(self, trade: dict, market_data: pd.DataFrame):
         """Checks if an open trade has hit its SL or TP."""
-        # Use the most recent data point for the check
         latest_candle = market_data.iloc[-1]
         
         if trade["direction"] == "Long":
@@ -109,7 +119,7 @@ class PortfolioTracker:
 
     def _calculate_performance_summary(self):
         """Calculates and updates the performance summary."""
-        closed_trades = [t for t in self.portfolio["trades"] if t["status"] == "closed"]
+        closed_trades = [t for t in self.portfolio.get("trades", []) if t.get("status") == "closed"]
         if not closed_trades:
             return
 

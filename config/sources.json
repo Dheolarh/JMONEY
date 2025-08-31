@@ -1,10 +1,11 @@
 {
   "YahooFinance": "https://finance.yahoo.com/",
-  "Yahoo": "https://finance.yahoo.com/",
   "Finviz": "https://finviz.com/news.ashx",
-  "GlobeNewswire": "https://www.globenewswire.com/",
+  "Cointelegraph": "https://cointelegraph.com/tags/crypto",
+  "CoinDesk": "https://www.coindesk.com/markets/",
+  "CryptoSlate": "https://cryptoslate.com/",
+  "The Block": "https://www.theblock.co/latest",
   "CNBC": "https://www.cnbc.com/world/?region=world",
-  "FXStreet": "https://www.fxstreet.com/news",
   "Business Insider": "https://markets.businessinsider.com/stocks",
-  "Financial Times": "https://www.ft.com/markets"
+  "GlobeNewswire": "https://www.globenewswire.com/"
 }

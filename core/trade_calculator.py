@@ -61,17 +61,21 @@ class TradeCalculator:
             tp2_short = entry_price - (risk_per_share * tp2_rr)
 
             if signal == "Buy":
+                tp1_pct = (tp1_long - entry_price) / entry_price * 100
+                tp2_pct = (tp2_long - entry_price) / entry_price * 100
                 params.update({
                     "stop_loss": round(stop_loss_long, decimals),
-                    "tp1": round(tp1_long, decimals),
-                    "tp2": round(tp2_long, decimals),
+                    "tp1": f"{round(tp1_long, decimals)} ({tp1_pct:.1f}%)",
+                    "tp2": f"{round(tp2_long, decimals)} ({tp2_pct:.1f}%)",
                     "position_size": self.calculate_position_size(entry_price, stop_loss_long)
                 })
             elif signal == "Sell":
+                tp1_pct = (entry_price - tp1_short) / entry_price * 100
+                tp2_pct = (entry_price - tp2_short) / entry_price * 100
                 params.update({
                     "stop_loss": round(stop_loss_short, decimals),
-                    "tp1": round(tp1_short, decimals),
-                    "tp2": round(tp2_short, decimals),
+                    "tp1": f"{round(tp1_short, decimals)} ({tp1_pct:.1f}%)",
+                    "tp2": f"{round(tp2_short, decimals)} ({tp2_pct:.1f}%)",
                     "position_size": self.calculate_position_size(entry_price, stop_loss_short)
                 })
             else: # For "Hold", "Avoid", "Neutral"

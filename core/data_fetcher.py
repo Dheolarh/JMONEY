@@ -65,14 +65,10 @@ class DataFetcher:
             }
         }
 
-    def _fetch_yahoo(self, ticker: str, asset_type: str) -> Optional[pd.DataFrame]:
+    def _fetch_yahoo(self, ticker: str) -> Optional[pd.DataFrame]:
         """Fetches data from Yahoo Finance."""
         print(f"    Fetching '{ticker}' from Yahoo Finance...")
         
-        # Adjust ticker for forex
-        if asset_type == 'forex':
-            ticker = f"{ticker}=X"
-
         try:
             ticker_obj = yf.Ticker(ticker)
             hist = ticker_obj.history(period="90d", interval="1h")
@@ -95,10 +91,10 @@ class DataFetcher:
         print(f"    Fetching '{ticker}' from {exchange.name}...")
         
         try:
-            # Attempt to fetch with the original ticker format first
+            exchange.load_markets()
+            
             ohlcv = exchange.fetch_ohlcv(ticker, timeframe='1h', limit=500)
             
-            # If that fails, try replacing '/' with '-' (common alternative format)
             if not ohlcv:
                 alt_ticker = ticker.replace('/', '-')
                 print(f"    ...ticker not found, trying alternative format: {alt_ticker}")
@@ -119,8 +115,12 @@ class DataFetcher:
             print(f"    Error fetching {ticker} from {exchange.name}: {e}")
             return None
 
-    def _fetch_google_finance(self, ticker: str) -> Optional[pd.DataFrame]:
+    def _fetch_google_finance(self, ticker: str, asset_type: str) -> Optional[pd.DataFrame]:
         """Fetches data from Google Finance via web scraping."""
+        
+        if asset_type == 'forex':
+            ticker = ticker.replace('/', '-')
+        
         print(f"    Fetching '{ticker}' from Google Finance...")
         try:
             url = f"https://www.google.com/finance/quote/{ticker}"
@@ -152,30 +152,26 @@ class DataFetcher:
             print(f"    Error fetching {ticker} from Google Finance: {e}")
             return None
 
-    def _fetch_polygon(self, ticker: str) -> Optional[pd.DataFrame]:
+    def _fetch_polygon(self, ticker: str, asset_type: str) -> Optional[pd.DataFrame]:
         """Fetches data from Polygon.io (requires API key)."""
+        
+        if asset_type == 'forex':
+            ticker = f"C:{ticker.replace('/', '')}"
+            
         print(f"    Fetching '{ticker}' from Polygon.io...")
         if not self.polygon_api_key:
             print("    Polygon API key not available, skipping")
             return None
         
         try:
-            # Try to import polygon API client
-            try:
-                from polygon import RESTClient
-            except ImportError:
-                print("    polygon-api-client package not installed, skipping")
-                return None
+            from polygon import RESTClient
             
-            # Initialize Polygon client
             client = RESTClient(api_key=self.polygon_api_key)
             
-            # Get stock data for the last 90 days
             from datetime import datetime, timedelta
             end_date = datetime.now().date()
             start_date = end_date - timedelta(days=90)
             
-            # Fetch aggregated bars (daily OHLCV)
             aggs = list(client.get_aggs(
                 ticker=ticker,
                 multiplier=1,
@@ -189,7 +185,6 @@ class DataFetcher:
                 print(f"    No data found for {ticker}")
                 return None
             
-            # Convert to DataFrame
             data = []
             for agg in aggs:
                 data.append({
@@ -215,16 +210,7 @@ class DataFetcher:
     def get_data(self, ticker: str, asset_type: str = 'stocks', preferred_sources: List[str] = None) -> Optional[pd.DataFrame]:
         """
         Main method to fetch data using configurable sources with fallback strategy.
-
-        Args:
-            ticker: The ticker symbol to fetch.
-            asset_type: The type of asset ('stocks', 'crypto', 'forex', 'etfs', 'indices').
-            preferred_sources: Optional list of preferred sources to try first.
-
-        Returns:
-            A pandas DataFrame with OHLCV data.
         """
-        # Determine which sources based on asset type and configuration
         if preferred_sources:
             sources_to_try = preferred_sources
         else:
@@ -235,7 +221,6 @@ class DataFetcher:
         
         print(f"    Trying sources for {asset_type} '{ticker}': {sources_to_try}")
         
-        # Try each source in order until one succeeds
         for source in sources_to_try:
             if source not in self.config['data_sources']:
                 print(f"    Source '{source}' not configured, skipping")
@@ -243,26 +228,22 @@ class DataFetcher:
                 
             source_config = self.config['data_sources'][source]
             
-            # Check if source supports this asset type
             if asset_type not in source_config.get('supported_assets', []):
                 print(f"    Source '{source}' doesn't support {asset_type}, skipping")
                 continue
                 
-            # Check if API key is required and available
             if source_config.get('api_key_required', False):
                 api_key_var = source_config.get('api_key_env_var')
                 if api_key_var and not os.environ.get(api_key_var):
                     print(f"    Source '{source}' requires API key ({api_key_var}), skipping")
                     continue
             
-            # Try to fetch data from this source
             try:
-                # Correctly format crypto tickers for Yahoo Finance
                 if source == 'yahoo' and asset_type == 'crypto':
                     fetch_ticker = ticker.replace('/', '-')
                 else:
                     fetch_ticker = ticker
-
+                
                 data = self._fetch_from_source(source, fetch_ticker, asset_type)
                 if data is not None and not data.empty:
                     print(f"    ✅ Successfully fetched from {source}")
@@ -279,13 +260,16 @@ class DataFetcher:
     def _fetch_from_source(self, source: str, ticker: str, asset_type: str) -> Optional[pd.DataFrame]:
         """Route to the appropriate fetcher method based on source name."""
         source_methods = {
-            'yahoo': lambda t: self._fetch_yahoo(t, asset_type),
-            'polygon': self._fetch_polygon,
+            'yahoo': self._fetch_yahoo,
+            'polygon': lambda t: self._fetch_polygon(t, asset_type),
             'crypto': lambda t: self._fetch_crypto(t, source),
-            'google_finance': self._fetch_google_finance,
+            'google_finance': lambda t: self._fetch_google_finance(t, asset_type),
             'coinbase': lambda t: self._fetch_crypto(t, source),
             'kucoin': lambda t: self._fetch_crypto(t, source),
-            'kraken': lambda t: self._fetch_crypto(t, source)
+            'kraken': lambda t: self._fetch_crypto(t, source),
+            'bybit': lambda t: self._fetch_crypto(t, source),
+            'gateio': lambda t: self._fetch_crypto(t, source),
+            'mexc': lambda t: self._fetch_crypto(t, source)
         }
         
         method = source_methods.get(source)
@@ -293,23 +277,3 @@ class DataFetcher:
             raise ValueError(f"No fetch method implemented for source: {source}")
             
         return method(ticker)
-
-    def get_available_sources(self, asset_type: str = None) -> List[str]:
-        """Get list of available sources, optionally filtered by asset type."""
-        if not asset_type:
-            return list(self.config['data_sources'].keys())
-        
-        available = []
-        for source_name, source_config in self.config['data_sources'].items():
-            if asset_type in source_config.get('supported_assets', []):
-                available.append(source_name)
-        return available
-
-    def add_custom_source(self, source_name: str, source_config: Dict):
-        """Allow developers to add custom data sources at runtime."""
-        self.config['data_sources'][source_name] = source_config
-        print(f"Added custom data source: {source_name}")
-
-    def get_source_info(self, source_name: str) -> Dict:
-        """Get information about a specific data source."""
-        return self.config['data_sources'].get(source_name, {})
