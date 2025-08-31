@@ -26,7 +26,38 @@
       "api_key_required": false,
       "rate_limit": "1200 requests/minute",
       "data_quality": "excellent",
-      "cost": "free"
+      "cost": "free",
+      "exchange": "binance"
+    },
+    "coinbase": {
+      "name": "Coinbase (via CCXT)",
+      "description": "Real-time cryptocurrency exchange data",
+      "supported_assets": ["crypto"],
+      "api_key_required": false,
+      "rate_limit": "Varies",
+      "data_quality": "excellent",
+      "cost": "free",
+      "exchange": "coinbase"
+    },
+    "kucoin": {
+      "name": "KuCoin (via CCXT)",
+      "description": "Real-time cryptocurrency exchange data",
+      "supported_assets": ["crypto"],
+      "api_key_required": false,
+      "rate_limit": "Varies",
+      "data_quality": "good",
+      "cost": "free",
+      "exchange": "kucoin"
+    },
+    "kraken": {
+      "name": "Kraken (via CCXT)",
+      "description": "Real-time cryptocurrency exchange data",
+      "supported_assets": ["crypto"],
+      "api_key_required": false,
+      "rate_limit": "Varies",
+      "data_quality": "excellent",
+      "cost": "free",
+      "exchange": "kraken"
     },
     "google_finance": {
       "name": "Google Finance",
@@ -45,7 +76,7 @@
     "stocks": ["yahoo", "google_finance", "polygon"],
     "etfs": ["google_finance", "yahoo", "polygon"],
     "forex": ["google_finance", "yahoo", "polygon"],
-    "crypto": ["crypto", "yahoo"],
+    "crypto": ["crypto", "coinbase", "kucoin", "kraken", "yahoo"],
     "indices": ["google_finance", "yahoo"]
   }
 }

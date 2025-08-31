@@ -18,12 +18,17 @@ class DataFetcher:
         self.config = self._load_config(config_path)
         self.polygon_api_key = os.environ.get("POLYGON_API_KEY")
         
-        # Initialize crypto exchange (Binance)
-        try:
-            self.crypto_exchange = ccxt.binance()
-        except Exception as e:
-            print(f"Warning: Could not initialize crypto exchange: {e}")
-            self.crypto_exchange = None
+        # Initialize crypto exchange based on config
+        self.crypto_exchange = None
+        crypto_source = self.config.get('asset_type_mapping', {}).get('crypto', [])
+        if crypto_source:
+            exchange_name = self.config['data_sources'][crypto_source[0]].get('exchange', 'binance')
+            try:
+                exchange_class = getattr(ccxt, exchange_name)
+                self.crypto_exchange = exchange_class()
+                print(f"Initialized crypto exchange: {exchange_name}")
+            except Exception as e:
+                print(f"Warning: Could not initialize crypto exchange '{exchange_name}': {e}")
             
         # Headers for web scraping
         self.headers = {
@@ -49,7 +54,7 @@ class DataFetcher:
         return {
             "data_sources": {
                 "yahoo": {"supported_assets": ["stocks", "etfs", "forex", "crypto"]},
-                "crypto": {"supported_assets": ["crypto"]}
+                "crypto": {"supported_assets": ["crypto"], "exchange": "binance"}
             },
             "priority_order": ["yahoo", "crypto"],
             "asset_type_mapping": {
@@ -74,15 +79,23 @@ class DataFetcher:
             return None
 
     def _fetch_crypto(self, ticker: str) -> Optional[pd.DataFrame]:
-        """Fetches data from a crypto exchange (Binance)."""
-        print(f"    Fetching '{ticker}' from Binance...")
+        """Fetches data from the configured crypto exchange."""
         if not self.crypto_exchange:
             print("    Crypto exchange not available")
             return None
+            
+        print(f"    Fetching '{ticker}' from {self.crypto_exchange.name}...")
         
         try:
-            # Fetch 1-hour candles
+            # Attempt to fetch with the original ticker format first
             ohlcv = self.crypto_exchange.fetch_ohlcv(ticker, timeframe='1h', limit=500)
+            
+            # If that fails, try replacing '/' with '-' (common alternative format)
+            if not ohlcv:
+                alt_ticker = ticker.replace('/', '-')
+                print(f"    ...ticker not found, trying alternative format: {alt_ticker}")
+                ohlcv = self.crypto_exchange.fetch_ohlcv(alt_ticker, timeframe='1h', limit=500)
+
             if not ohlcv:
                 print(f"    No data found for {ticker}")
                 return None
@@ -95,7 +108,7 @@ class DataFetcher:
             print(f"    Successfully fetched {len(df)} data points")
             return df
         except Exception as e:
-            print(f"    Error fetching {ticker} from Binance: {e}")
+            print(f"    Error fetching {ticker} from {self.crypto_exchange.name}: {e}")
             return None
 
     def _fetch_google_finance(self, ticker: str) -> Optional[pd.DataFrame]:
@@ -255,7 +268,10 @@ class DataFetcher:
             'yahoo': self._fetch_yahoo,
             'polygon': self._fetch_polygon,
             'crypto': self._fetch_crypto,
-            'google_finance': self._fetch_google_finance
+            'google_finance': self._fetch_google_finance,
+            'coinbase': self._fetch_crypto,
+            'kucoin': self._fetch_crypto,
+            'kraken': self._fetch_crypto
         }
         
         method = source_methods.get(source)

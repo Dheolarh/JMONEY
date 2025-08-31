@@ -1,4 +1,5 @@
 from .data_fetcher import DataFetcher
+import re
 
 class DataEnricher:
     """
@@ -8,9 +9,13 @@ class DataEnricher:
     def __init__(self):
         """Initializes the DataEnricher."""
         self.fetcher = DataFetcher()
-        # Define known FIAT and CRYPTO currencies to help identify asset types
-        self.FIAT_CURRENCIES = ['USD', 'EUR', 'GBP', 'JPY', 'CAD', 'AUD', 'CHF']
-        self.CRYPTO_CURRENCIES = ['USDT', 'BUSD', 'BTC', 'ETH', 'USDC', 'DAI']
+        # Define patterns for asset type detection
+        self.asset_patterns = [
+            {'type': 'forex', 'pattern': re.compile(r'^[A-Z]{3}/[A-Z]{3}$')},
+            {'type': 'crypto', 'pattern': re.compile(r'^[A-Z0-9]+/(USDT|BUSD|BTC|ETH|USDC|DAI)$')},
+            {'type': 'indices', 'pattern': re.compile(r'^(SPY|QQQ|DJI|IXIC|RUT|VIX)$')},
+            {'type': 'stocks', 'pattern': re.compile(r'^[A-Z]{1,5}$')} # Default for stocks
+        ]
 
     def _determine_asset_type(self, ticker: str) -> tuple[str, str, str]:
         """
@@ -24,29 +29,20 @@ class DataEnricher:
         """
         upper_ticker = ticker.upper()
 
-        # 1. Check for FX Pairs (e.g., EUR/USD)
-        if "/" in upper_ticker and len(upper_ticker) == 7:
-            base, quote = upper_ticker.split('/')
-            if base in self.FIAT_CURRENCIES and quote in self.FIAT_CURRENCIES:
-                print(f"    ...identified as FX Pair.")
-                # Format for Yahoo Finance: 'EURUSD=X'
-                return 'forex', f"{base}{quote}=X", upper_ticker
-
-        # 2. Check for Crypto Pairs (e.g., BTC/USDT)
-        if "/" in upper_ticker:
-            base, quote = upper_ticker.split('/')
-            if quote in self.CRYPTO_CURRENCIES:
-                print(f"    ...identified as Crypto Pair.")
-                return 'crypto', upper_ticker, upper_ticker
-
-        # 3. Check for common indices (e.g., SPY, QQQ, DJI)
-        common_indices = ['SPY', 'QQQ', 'DJI', 'IXIC', 'RUT', 'VIX']
-        if upper_ticker in common_indices:
-            print(f"    ...identified as Index/ETF.")
-            return 'indices', upper_ticker, upper_ticker
-
-        # 4. Default to Stocks/ETFs (e.g., AAPL, MSFT)
-        print(f"    ...identified as Stock.")
+        for asset_pattern in self.asset_patterns:
+            if asset_pattern['pattern'].match(upper_ticker):
+                asset_type = asset_pattern['type']
+                print(f"    ...identified as {asset_type.title()}.")
+                
+                # Format ticker for Yahoo Finance if it's a forex pair
+                if asset_type == 'forex':
+                    formatted_ticker = f"{upper_ticker.replace('/', '')}=X"
+                    return asset_type, formatted_ticker, upper_ticker
+                
+                return asset_type, upper_ticker, upper_ticker
+        
+        # Default to stocks if no other pattern matches
+        print("    ...no specific pattern matched, defaulting to Stock.")
         return 'stocks', upper_ticker, upper_ticker
 
     def enrich_assets(self, assets: list[dict]) -> list[dict]:

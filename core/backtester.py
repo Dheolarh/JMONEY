@@ -12,7 +12,8 @@ class Backtester:
         self.output_manager = output_manager
         self.data_fetcher = DataFetcher()
 
-    def run_backtest(self, signals: list[dict], days_to_backtest: int = 7) -> dict:
+    def run_backtest(self, signals: list[dict], days_to_backtest: int = 7, 
+                     transaction_cost_pct: float = 0.001, slippage_pct: float = 0.0005) -> dict:
         results = []
         skipped = 0
         processed = 0
@@ -45,18 +46,22 @@ class Backtester:
             processed += 1
 
             try:
-                entry_price = float(entry_price)
-                sl = float(sl)
-                tp = float(tp)
+                # Remove '$' and '(ref)' before converting to float
+                if isinstance(entry_price, str):
+                    entry_price = float(entry_price.replace('$', '').replace('(ref)', '').strip())
+                if isinstance(sl, str):
+                    sl = float(sl.replace('$', '').replace('(ref)', '').strip())
+                if isinstance(tp, str):
+                    tp = float(tp.replace('$', '').replace('(ref)', '').strip())
             except (TypeError, ValueError):
                 skipped += 1
                 continue
     
-            trade_result = self._simulate_trade(data, entry_price, sl, tp, direction)
+            trade_result = self._simulate_trade(data, entry_price, sl, tp, direction, transaction_cost_pct, slippage_pct)
             if trade_result is not None:
                 results.append(trade_result)
     
-        win_count = sum(1 for r in results if r == 1)
+        win_count = sum(1 for r in results if r > 0)  # A win is any result > 0
         total = len(results)
         win_rate = (win_count / total * 100) if total > 0 else 0
     
@@ -70,27 +75,49 @@ class Backtester:
             "skipped": skipped
         }
 
-    def _simulate_trade(self, market_data: pd.DataFrame, entry: float, sl: float, tp: float, signal: str) -> float | None:
+    def _simulate_trade(self, market_data: pd.DataFrame, entry: float, sl: float, tp: float, signal: str, 
+                        transaction_cost_pct: float, slippage_pct: float) -> float | None:
         """
-        Simulates a single trade against historical data.
-        Returns the profit/loss percentage, or the mark-to-market P/L if trade is still open at the end.
+        Simulates a single trade against historical data, including transaction costs and slippage.
+        Returns the net profit/loss percentage.
         """
         signal = signal.lower()
+        
+        # Adjust entry price for slippage
+        entry_price_with_slippage = entry * (1 + slippage_pct) if signal == 'buy' else entry * (1 - slippage_pct)
+        
         for index, row in market_data.iterrows():
             if signal == 'buy':
+                # Check for stop loss
                 if row['Low'] <= sl:
-                    return -abs((entry - sl) / entry) * 100 
+                    exit_price = sl
+                    profit_pct = (exit_price - entry_price_with_slippage) / entry_price_with_slippage * 100
+                    return profit_pct - (transaction_cost_pct * 2 * 100) # Costs for entry and exit
+                # Check for take profit
                 if row['High'] >= tp:
-                    return abs((tp - entry) / entry) * 100
-            elif signal == 'sell':
-                if row['High'] >= sl:
-                    return -abs((sl - entry) / entry) * 100 
-                if row['Low'] <= tp:
-                    return abs((entry - tp) / entry) * 100
+                    exit_price = tp
+                    profit_pct = (exit_price - entry_price_with_slippage) / entry_price_with_slippage * 100
+                    return profit_pct - (transaction_cost_pct * 2 * 100)
 
+            elif signal == 'sell':
+                # Check for stop loss
+                if row['High'] >= sl:
+                    exit_price = sl
+                    profit_pct = (entry_price_with_slippage - exit_price) / entry_price_with_slippage * 100
+                    return profit_pct - (transaction_cost_pct * 2 * 100)
+                # Check for take profit
+                if row['Low'] <= tp:
+                    exit_price = tp
+                    profit_pct = (entry_price_with_slippage - exit_price) / entry_price_with_slippage * 100
+                    return profit_pct - (transaction_cost_pct * 2 * 100)
+
+        # If trade is still open at the end of the data, calculate mark-to-market P/L
         last_close = market_data.iloc[-1]['Close']
         if signal == 'buy':
-            return (last_close - entry) / entry * 100
+            profit_pct = (last_close - entry_price_with_slippage) / entry_price_with_slippage * 100
         elif signal == 'sell':
-            return (entry - last_close) / entry * 100
-        return None
+            profit_pct = (entry_price_with_slippage - last_close) / entry_price_with_slippage * 100
+        else:
+            return None
+            
+        return profit_pct - (transaction_cost_pct * 100) # Cost for entry only, as trade is not closed

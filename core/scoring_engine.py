@@ -70,6 +70,14 @@ class ScoringEngine:
         """Calculate Simple Moving Average."""
         return prices.rolling(window=period).mean()
 
+    def _calculate_bollinger_bands(self, prices: pd.Series, period: int = 20, std_dev: int = 2) -> dict:
+        """Calculate Bollinger Bands."""
+        sma = prices.rolling(window=period).mean()
+        std = prices.rolling(window=period).std()
+        upper_band = sma + (std * std_dev)
+        lower_band = sma - (std * std_dev)
+        return {'upper': upper_band, 'middle': sma, 'lower': lower_band}
+
     def _calculate_atr(self, high: pd.Series, low: pd.Series, close: pd.Series, period: int = 14) -> pd.Series:
         """Calculate Average True Range."""
         high_low = high - low
@@ -91,48 +99,37 @@ class ScoringEngine:
         try:
             score = 5  # Base score
             
-            # Determine correct column name for close prices
             close_col = 'Close' if 'Close' in market_data.columns else 'close'
             close_prices = market_data[close_col]
             
             # RSI Analysis
             rsi = self._calculate_rsi(close_prices)
             current_rsi = rsi.iloc[-1]
-            
             if not pd.isna(current_rsi):
-                if current_rsi > 70:  # Overbought
-                    score -= 2
-                elif current_rsi < 30:  # Oversold
-                    score += 2
-                elif 40 <= current_rsi <= 60:  # Neutral zone
-                    score += 1
+                if current_rsi > 70: score -= 2
+                elif current_rsi < 30: score += 2
+                elif 40 <= current_rsi <= 60: score += 1
             
             # MACD Analysis
             macd_data = self._calculate_macd(close_prices)
             if not pd.isna(macd_data['macd'].iloc[-1]) and not pd.isna(macd_data['signal'].iloc[-1]):
-                if macd_data['macd'].iloc[-1] > macd_data['signal'].iloc[-1]:  # Bullish
-                    score += 1.5
-                else:  # Bearish
-                    score -= 1.5
+                if macd_data['macd'].iloc[-1] > macd_data['signal'].iloc[-1]: score += 1.5
+                else: score -= 1.5
+            
+            # Bollinger Bands Analysis
+            bbands = self._calculate_bollinger_bands(close_prices)
+            current_price = close_prices.iloc[-1]
+            if not pd.isna(bbands['upper'].iloc[-1]) and not pd.isna(bbands['lower'].iloc[-1]):
+                if current_price > bbands['upper'].iloc[-1]: score -= 1 # Potentially overbought
+                elif current_price < bbands['lower'].iloc[-1]: score += 1 # Potentially oversold
             
             # Moving Average Analysis
             if len(close_prices) >= 200:
                 ma_50 = self._calculate_sma(close_prices, 50).iloc[-1]
                 ma_200 = self._calculate_sma(close_prices, 200).iloc[-1]
-                
                 if not pd.isna(ma_50) and not pd.isna(ma_200):
-                    if ma_50 > ma_200:  # Bullish trend
-                        score += 1.5
-                    else:  # Bearish trend
-                        score -= 1.5
-            
-            # Price momentum (last 5 periods)
-            if len(close_prices) >= 5:
-                recent_change = (close_prices.iloc[-1] - close_prices.iloc[-5]) / close_prices.iloc[-5]
-                if recent_change > 0.02:  # 2% gain
-                    score += 1
-                elif recent_change < -0.02:  # 2% loss
-                    score -= 1
+                    if ma_50 > ma_200: score += 1.5
+                    else: score -= 1.5
             
             final_score = max(0, min(10, round(score)))
             print(f"    ...calculated Technical Score: {final_score}/10")
@@ -140,73 +137,38 @@ class ScoringEngine:
             
         except Exception as e:
             print(f"    ...error calculating technical score: {e}")
-            return 5  # Return neutral score on error
+            return 5
 
     def calculate_zs10_score(self, market_data: pd.DataFrame) -> int:
         """
         Calculate ZS-10+ score for trap detection.
-        Enhanced implementation with better volume/price divergence analysis.
         """
         if market_data is None or len(market_data) < 20:
             print("    ...insufficient data for ZS-10+ analysis")
             return 5
         
         try:
-            # Find volume and close columns (handle different naming conventions)
-            volume_col = None
-            close_col = None
-            
-            for col in market_data.columns:
-                if col.lower() in ['volume', 'vol']:
-                    volume_col = col
-                if col.lower() in ['close', 'close_price', 'adj close']:
-                    close_col = col
-            
-            if not close_col:
-                close_col = market_data.columns[-1] # Fallback to last column if no close found
-            
+            volume_col = next((col for col in market_data.columns if col.lower() in ['volume', 'vol']), None)
+            close_col = next((col for col in market_data.columns if col.lower() in ['close', 'adj close']), market_data.columns[-1])
             close_prices = market_data[close_col]
             
-            if volume_col and volume_col in market_data.columns:
+            if volume_col:
                 volume = market_data[volume_col]
-                
-                # Enhanced volume analysis
                 recent_volume_avg = volume.tail(5).mean()
                 historical_volume_avg = volume.tail(20).mean()
                 volume_ratio = recent_volume_avg / historical_volume_avg if historical_volume_avg > 0 else 1
-                
-                # Price momentum analysis
                 recent_price_change = (close_prices.iloc[-1] - close_prices.iloc[-5]) / close_prices.iloc[-5]
                 
-                # More nuanced scoring
-                if volume_ratio < 0.6 and recent_price_change > 0.03:
-                    score = 8  # High trap risk - price up, volume down significantly
-                elif volume_ratio < 0.8 and recent_price_change > 0.02:
-                    score = 6  # Medium-high trap risk
-                elif volume_ratio > 1.5 and recent_price_change > 0.01:
-                    score = 2  # Low trap risk - good volume confirmation
-                elif volume_ratio > 1.2 and recent_price_change > 0:
-                    score = 3  # Low-medium trap risk
-                elif abs(recent_price_change) < 0.01:
-                    score = 4  # Neutral - sideways movement
-                else:
-                    score = 5  # Default moderate risk
-                    
+                score = 8 if volume_ratio < 0.6 and recent_price_change > 0.03 else \
+                        6 if volume_ratio < 0.8 and recent_price_change > 0.02 else \
+                        2 if volume_ratio > 1.5 and recent_price_change > 0.01 else \
+                        3 if volume_ratio > 1.2 and recent_price_change > 0 else \
+                        4 if abs(recent_price_change) < 0.01 else 5
                 print(f"    ...calculated ZS-10+ Score: {score}/10 (Volume ratio: {volume_ratio:.2f}, Price change: {recent_price_change:.3f})")
             else:
-                # Price-only analysis when volume not available
                 price_volatility = close_prices.tail(10).std() / close_prices.tail(10).mean()
-                recent_price_change = (close_prices.iloc[-1] - close_prices.iloc[-5]) / close_prices.iloc[-5]
-                
-                if price_volatility > 0.05 and abs(recent_price_change) > 0.03:
-                    score = 7  # High volatility suggests potential trap
-                elif price_volatility < 0.02:
-                    score = 3  # Low volatility suggests stability
-                else:
-                    score = 5  # Moderate volatility
-                    
+                score = 7 if price_volatility > 0.05 else 3 if price_volatility < 0.02 else 5
                 print(f"    ...calculated ZS-10+ Score: {score}/10 (Price-only analysis, volatility: {price_volatility:.3f})")
-            
             return score
             
         except Exception as e:
@@ -214,29 +176,25 @@ class ScoringEngine:
             return 5
 
     def calculate_all_scores(self, enriched_assets: list[dict]) -> list[dict]:
-        """
-        Calculates all scores for a list of enriched assets, now including AI scores.
-        """
+        """Calculates all scores for a list of enriched assets."""
         scored_assets = []
         for asset in enriched_assets:
             print(f"--> Scoring asset: {asset.get('ticker')}")
             market_data = asset.get('market_data')
 
-            # --- Technical Score Calculations ---
             asset['technical_score'] = self.calculate_technical_score(market_data)
             asset['zs10_score'] = self.calculate_zs10_score(market_data)
 
-            # --- AI-based Score Calculations ---
             ai_scores = self.analyzer.get_detailed_scores(
                 ticker=asset.get('ticker'),
                 catalyst_headline=asset.get('catalyst')
             )
             
-            # Update the asset with the new, real scores from the AI
-            asset['macro_score'] = ai_scores.get('macro_score', 5) # Default to 5 if AI fails
-            asset['sentiment_score'] = ai_scores.get('sentiment_score', 5)
-            asset['catalyst_type'] = ai_scores.get('catalyst_type', 'None')
-            
+            asset.update({
+                'macro_score': ai_scores.get('macro_score', 5),
+                'sentiment_score': ai_scores.get('sentiment_score', 5),
+                'catalyst_type': ai_scores.get('catalyst_type', 'None')
+            })
             scored_assets.append(asset)
         
         return scored_assets

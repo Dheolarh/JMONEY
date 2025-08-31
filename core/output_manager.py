@@ -123,14 +123,6 @@ class OutputManager:
                 print(f"    Skipping duplicate: {ticker} - {catalyst_headline[:50]}...")
                 continue
             
-
-            technical_score = s.get('technical_score', 0)
-            zs_score = s.get('zs10_score', 0)
-            macro_score = s.get('macro_score', 0)
-            sentiment_score = s.get('sentiment_score', 0)
-            confidence_score = round((technical_score + macro_score + (10 - zs_score)) / 3, 1)
-            
-
             signal = s.get('signal', 'Neutral')
             direction = "Long" if signal == "Buy" else "Short" if signal == "Sell" else "Neutral"
             
@@ -147,11 +139,11 @@ class OutputManager:
                 "TP1": self._format_monetary_value(s.get('tp1', 'N/A')),
                 "TP2": self._format_monetary_value(s.get('tp2', 'N/A')),
                 "TP Strategy": s.get('tp_strategy', 'Manual exit required'),
-                "Technical Score": f"{technical_score}/10",
-                "ZS-10+ Score": f"{zs_score}/10",
-                "Macro Score": f"{macro_score}/10",
-                "Sentiment Score": f"{sentiment_score}/10",
-                "Confidence Score": f"{confidence_score}/10",
+                "Technical Score": f"{s.get('technical_score', 0)}/10",
+                "ZS-10+ Score": f"{s.get('zs10_score', 0)}/10",
+                "Macro Score": f"{s.get('macro_score', 0)}/10",
+                "Sentiment Score": f"{s.get('sentiment_score', 0)}/10",
+                "Confidence Score": f"{s.get('confidence_score', 0.0)}/10",
                 "Catalyst": catalyst_type,
                 "Summary": catalyst_headline,
                 "JMoney Confirmed": 'YES' if s.get('jmoney_confirmed', False) else 'NO',

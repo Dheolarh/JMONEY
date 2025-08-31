@@ -2,8 +2,10 @@
   "jmoney_confirmation": {
     "required_conditions": 3,
     "rules": {
-      "technical_score": 6.0,
-      "macro_score": 5.0
+      "technical_score": 7.5,
+      "macro_score": 6.0,
+      "zs10_score_max": 4.0,
+      "catalyst_required": true
     }
   }
 }

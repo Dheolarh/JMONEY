@@ -20,6 +20,7 @@ class JMoneyTelegramBot:
         self.recent_signals = []
         self.confirmed_signals = []
         self.workflow_callback = None 
+        self.portfolio_tracker = None
         
         # Setup logging
         logging.basicConfig(
@@ -45,6 +46,7 @@ class JMoneyTelegramBot:
             dispatcher.add_handler(CommandHandler("neutral", self.neutral_command))
             dispatcher.add_handler(CommandHandler("fetch", self.fetch_command))
             dispatcher.add_handler(CommandHandler("status", self.status_command))
+            dispatcher.add_handler(CommandHandler("portfolio", self.portfolio_command))
             
             # Register callback query handler
             dispatcher.add_handler(CallbackQueryHandler(self.button_callback))
@@ -84,6 +86,7 @@ class JMoneyTelegramBot:
 *Available Commands:*
 /signals - View recent trading signals
 /confirmed - Show confirmed trade setups
+/portfolio - View portfolio performance
 /boost - View Boost strategy signals
 /zen - View Zen strategy signals  
 /caution - View Caution strategy signals
@@ -96,6 +99,7 @@ class JMoneyTelegramBot:
         keyboard = [
             [InlineKeyboardButton("📊 Recent Signals", callback_data="recent_signals")],
             [InlineKeyboardButton("✅ Confirmed Trades", callback_data="confirmed_trades")],
+            [InlineKeyboardButton("📈 Portfolio", callback_data="portfolio")],
             [InlineKeyboardButton("📈 System Status", callback_data="system_status")]
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
@@ -112,7 +116,8 @@ class JMoneyTelegramBot:
 🤖 *JMoney Bot Commands*
 
 📊 */signals* - View recent trading signals
-✅ */confirmed* - Show confirmed trade setups  
+✅ */confirmed* - Show confirmed trade setups
+📈 */portfolio* - View portfolio performance
 ⚡ */boost* - View Boost strategy signals
 🧘 */zen* - View Zen strategy signals
 ⚠️ */caution* - View Caution/Short strategy signals
@@ -529,7 +534,32 @@ All systems operational
         """
         
         update.message.reply_text(status_message, parse_mode=ParseMode.MARKDOWN)
-    
+        
+    def portfolio_command(self, update: Update, context: CallbackContext):
+        """Handle /portfolio command."""
+        if not self.portfolio_tracker:
+            update.message.reply_text("Portfolio tracker not available.")
+            return
+            
+        summary = self.portfolio_tracker.get_summary()
+        if not summary:
+            update.message.reply_text("No closed trades in portfolio yet.")
+            return
+            
+        message = f"""
+📈 *Portfolio Performance*
+
+💰 *Total P/L:* {summary.get('total_pnl_pct', 0):.2f}%
+📊 *Win Rate:* {summary.get('win_rate', 0):.2f}%
+ trades
+✅ *Wins:* {summary.get('wins', 0)}
+🔴 *Losses:* {summary.get('losses', 0)}
+
+📈 *Avg. Win:* {summary.get('average_win_pct', 0):.2f}%
+📉 *Avg. Loss:* {summary.get('average_loss_pct', 0):.2f}%
+        """
+        update.message.reply_text(message, parse_mode=ParseMode.MARKDOWN)
+
     def button_callback(self, update: Update, context: CallbackContext):
         """Handle inline keyboard button presses."""
         query = update.callback_query
@@ -541,6 +571,8 @@ All systems operational
             self.confirmed_command(query, context)
         elif query.data == "system_status":
             self.status_command(query, context)
+        elif query.data == "portfolio":
+            self.portfolio_command(query, context)
         elif query.data == "refresh_signals":
             query.edit_message_text("🔄 Refreshing signals...")
             self.signals_command(query, context)
@@ -726,13 +758,8 @@ All systems operational
         decision = signal_data.get('signal', 'Neutral') 
         jmoney_confirmed = signal_data.get('jmoney_confirmed', False)
         
-        # Calculate overall confidence score from individual scores
-        technical_score = signal_data.get('technical_score', 0)
-        macro_score = signal_data.get('macro_score', 0)
-        zs_score = signal_data.get('zs10_score', 0)
-        
-        # Calculate weighted confidence score (out of 10)
-        confidence_score = (technical_score * 0.4 + macro_score * 0.4 + (10 - zs_score) * 0.2)
+        # Use the pre-calculated confidence score from the signal data
+        confidence_score = signal_data.get('confidence_score', 0.0)
         
         emoji = self._get_signal_emoji(decision)
         
@@ -792,10 +819,10 @@ All systems operational
         message += f"• *Stop Loss*: {stop_loss}\n"
         message += f"• *TP1 / TP2*: {tp1} / {tp2}\n"
         message += f"• *TP Strategy*: {tp_strategy}\n"
-        message += f"• *Macro Score*: {macro_score}/10\n"
-        message += f"• *Sentiment Score*: {technical_score}/10\n" 
+        message += f"• *Macro Score*: {signal_data.get('macro_score', 0)}/10\n"
+        message += f"• *Sentiment Score*: {signal_data.get('technical_score', 0)}/10\n" 
         message += f"• *Catalyst*: {catalyst_type}\n"
-        message += f"• *ZS-10+ Score*: {zs_score}/10\n"
+        message += f"• *ZS-10+ Score*: {signal_data.get('zs10_score', 0)}/10\n"
         
         # JMoney confirmation reason
         if jmoney_confirmed:
