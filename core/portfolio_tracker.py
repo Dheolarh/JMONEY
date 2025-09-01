@@ -60,6 +60,7 @@ class PortfolioTracker:
 
         trade = {
             "ticker": signal.get('ticker'),
+            "asset_type": signal.get('asset_type'), # Add this line
             "direction": "Long" if signal.get('signal') == "Buy" else "Short",
             "entry_price": entry_price,
             "stop_loss": stop_loss,
