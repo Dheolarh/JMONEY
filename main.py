@@ -2,6 +2,8 @@ import os
 import asyncio
 import time
 import threading
+from core.backtester import Backtester
+from core.optimizer import Optimizer
 import schedule
 from dotenv import load_dotenv
 from core.news_scanner import NewsScanner
@@ -184,6 +186,21 @@ def main():
     output_manager = OutputManager(credentials_path=os.getenv("GOOGLE_APPLICATION_CREDENTIALS"), sheet_name=os.getenv("SHEET_NAME"))
     portfolio_tracker = PortfolioTracker()
     telegram_manager_instance = create_telegram_manager(output_manager=output_manager)
+    
+    logger.start_section("PERFORMING STRATEGY OPTIMIZATION")
+    try:
+        api_key = os.getenv("OPENAI_KEY") or os.getenv("GEMINI_API_KEY")
+        ai_analyzer = AIAnalyzer(api_key=api_key, prompts_path="config/prompts.json")
+        
+        optimizer = Optimizer(
+            output_manager=output_manager,
+            metrics_path=os.getenv("METRICS_PATH", "config/scoring_metrics.json"),
+            ai_analyzer=ai_analyzer
+        )
+        optimizer.run_optimization(iterations=2)
+        
+    except Exception as e:
+        logger.fail(f"An error occurred during optimization: {e}")
 
     run_workflow()
     
