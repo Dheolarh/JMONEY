@@ -2,6 +2,7 @@ import json
 import pandas as pd
 from datetime import datetime
 from .data_fetcher import DataFetcher
+from .ai_analyzer import AIAnalyzer # Add this import
 import os
 
 class PortfolioTracker:
@@ -14,6 +15,16 @@ class PortfolioTracker:
         """
         self.portfolio_path = portfolio_path
         self.data_fetcher = DataFetcher()
+        
+        # Add these lines to initialize the AI Analyzer
+        api_key = os.getenv("OPENAI_KEY") or os.getenv("GEMINI_API_KEY")
+        if not api_key:
+            raise ValueError("AI API key not found for PortfolioTracker")
+        self.ai_analyzer = AIAnalyzer(
+            api_key=api_key,
+            prompts_path=os.getenv("PROMPTS_PATH", "config/prompts.json"),
+            provider="openai" if os.getenv("OPENAI_KEY") else "gemini"
+        )
 
         # Ensure the data directory exists
         portfolio_dir = os.path.dirname(self.portfolio_path)
@@ -84,7 +95,13 @@ class PortfolioTracker:
             return
 
         for trade in trades_to_check:
-            market_data = self.data_fetcher.get_data(trade["ticker"])
+            # Use AI to get the asset type
+            asset_type = self.ai_analyzer.get_asset_type(trade["ticker"])
+            if not asset_type:
+                print(f"    ...could not determine asset type for {trade['ticker']}. Skipping.")
+                continue
+
+            market_data = self.data_fetcher.get_data(trade["ticker"], asset_type=asset_type)
             if market_data is not None and not market_data.empty:
                 self._check_trade_status(trade, market_data)
         

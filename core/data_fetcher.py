@@ -65,8 +65,13 @@ class DataFetcher:
             }
         }
 
-    def _fetch_yahoo(self, ticker: str) -> Optional[pd.DataFrame]:
+    def _fetch_yahoo(self, ticker: str, asset_type: str = 'stocks') -> Optional[pd.DataFrame]:
         """Fetches data from Yahoo Finance."""
+        
+        # Add this block to format crypto tickers
+        if asset_type == 'crypto' and '-' not in ticker:
+            ticker = f"{ticker}-USD"
+
         print(f"    Fetching '{ticker}' from Yahoo Finance...")
         
         try:
@@ -260,7 +265,7 @@ class DataFetcher:
     def _fetch_from_source(self, source: str, ticker: str, asset_type: str) -> Optional[pd.DataFrame]:
         """Route to the appropriate fetcher method based on source name."""
         source_methods = {
-            'yahoo': self._fetch_yahoo,
+            'yahoo': lambda t: self._fetch_yahoo(t, asset_type), # Pass asset_type here
             'polygon': lambda t: self._fetch_polygon(t, asset_type),
             'crypto': lambda t: self._fetch_crypto(t, source),
             'google_finance': lambda t: self._fetch_google_finance(t, asset_type),

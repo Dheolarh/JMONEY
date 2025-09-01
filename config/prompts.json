@@ -10,5 +10,9 @@
   "score_asset": {
     "system_message": "You are a financial analyst. Your task is to provide quantitative scores based on a news catalyst.",
     "user_prompt_template": "Analyze the following catalyst for the asset '{ticker}': '{catalyst_headline}'. Based on this information, provide the following scores in a single JSON object:\n1. 'macro_score' (0-10): How significant is the macroeconomic impact? (10 is very high impact).\n2. 'sentiment_score' (0-10): What is the likely market sentiment? (0 is very bearish, 5 is neutral, 10 is very bullish).\n3. 'catalyst_type': Classify the catalyst into one of the following categories: ['Earnings', 'Fed', 'CPI', 'Jobs', 'FDA', 'Insider', 'None']."
+  },
+  "get_asset_type": {
+    "system_message": "You are a financial data specialist. Your task is to identify the asset class of a given ticker. Respond with only a single word.",
+    "user_prompt_template": "What is the asset type for the ticker '{ticker}'? Choose from: 'stocks', 'crypto', 'forex', 'indices'."
   }
 }

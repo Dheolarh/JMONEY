@@ -17,6 +17,7 @@ class AIAnalyzer:
         import os
         testing_mode = os.getenv("TESTING_MODE", "false").lower() == "true"
         self.prompts = self._load_prompts(prompts_path)
+        self.asset_type_cache = {} # Add this line
         if testing_mode:
             if not api_key:
                 raise ValueError("Gemini API key is required.")
@@ -177,3 +178,32 @@ class AIAnalyzer:
         except Exception as e:
             print(f"        [FAILED] Error during detailed AI scoring: {e}")
             return {}
+
+    def get_asset_type(self, ticker: str) -> Optional[str]:
+        """
+        Uses AI to determine the asset type of a ticker, with caching.
+        """
+        if ticker in self.asset_type_cache:
+            return self.asset_type_cache[ticker]
+
+        if not self.prompts or "get_asset_type" not in self.prompts:
+            print("Error: 'get_asset_type' prompt not found in config.")
+            return None
+            
+        prompt_config = self.prompts["get_asset_type"]
+        final_prompt = prompt_config["user_prompt_template"].format(ticker=ticker)
+        
+        try:
+            response_text = self._call_ai_provider(
+                prompt_config["system_message"],
+                final_prompt,
+                max_tokens=20
+            )
+            asset_type = response_text.strip().lower()
+            
+            # Cache the result
+            self.asset_type_cache[ticker] = asset_type
+            return asset_type
+        except Exception as e:
+            print(f"    [FAILED] AI asset type detection failed for '{ticker}': {e}")
+            return None
