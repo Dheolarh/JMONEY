@@ -12,9 +12,13 @@ from core.decision_engine import DecisionEngine
 from core.output_manager import OutputManager
 from core.telegram_manager import create_telegram_manager
 from core.portfolio_tracker import PortfolioTracker
-from utils.logger import logger # Correctly imports from your utils folder
+from utils.logger import logger
 
-def run_workflow():
+# Global variable to hold the main workflow job
+workflow_job = None
+telegram_manager_instance = None # Global instance for notifications
+
+def run_workflow(is_manual_trigger=False):
     """Run the complete trading signal analysis workflow."""
     logger.start_section("WORKFLOW STARTED")
     
@@ -55,16 +59,21 @@ def run_workflow():
         identified_assets = analyzer.identify_assets_from_headlines(headlines_with_sources)
         if not identified_assets:
             logger.info("AI did not identify any assets. Workflow complete.")
+            if is_manual_trigger and telegram_manager_instance:
+                message = "✅ *Workflow Completed*\n\nAI did not identify any new tradeable assets from the latest headlines."
+                telegram_manager_instance._send_message_sync(message)
             return True
         logger.success(f"AI identified {len(identified_assets)} potential assets.")
 
         # --- STEP 3: Enrich assets with market data ---
         logger.start_section("STEP 3: DATA ENRICHMENT")
-        # FIX: Pass the 'analyzer' instance to the DataEnricher
         enricher = DataEnricher(analyzer=analyzer)
         enriched_assets = enricher.enrich_assets(identified_assets)
         if not enriched_assets:
             logger.info("Could not enrich any assets with market data. Workflow complete.")
+            if is_manual_trigger and telegram_manager_instance:
+                message = "✅ *Workflow Completed*\n\nCould not enrich any of the identified assets with market data."
+                telegram_manager_instance._send_message_sync(message)
             return True
         logger.success(f"Successfully enriched {len(enriched_assets)} assets.")
 
@@ -98,12 +107,15 @@ def run_workflow():
             logger.fail("Google Sheets export failed.")
         
         # --- STEP 7: Send Telegram Notifications ---
-        telegram_manager = create_telegram_manager(output_manager=output_manager)
-        if telegram_manager and final_signals:
+        if telegram_manager_instance and final_signals:
             logger.log("Sending Telegram notifications...")
-            asyncio.run(telegram_manager.send_batch_notifications(final_signals))
+            asyncio.run(telegram_manager_instance.send_batch_notifications(final_signals))
             logger.success("Telegram notifications sent.")
         
+        if is_manual_trigger and telegram_manager_instance:
+            message = f"✅ *Workflow Completed Successfully*\n\nGenerated and sent {len(final_signals)} new signals!"
+            telegram_manager_instance._send_message_sync(message)
+            
         logger.start_section("WORKFLOW FINISHED")
         return True
         
@@ -111,12 +123,49 @@ def run_workflow():
         logger.fail(f"Workflow failed: {e}")
         import traceback
         traceback.print_exc()
+        if is_manual_trigger and telegram_manager_instance:
+            message = f"❌ *Workflow Failed*\n\nAn error occurred: {e}"
+            telegram_manager_instance._send_message_sync(message)
         return False
 
-def setup_scheduled_workflow():
-    """Setup scheduled workflow execution."""
-    schedule.every(4).hours.do(run_workflow)
+def setup_schedules(telegram_manager):
+    """Setup all scheduled jobs for the system."""
+    global workflow_job
+    
+    schedule.clear()
+    
+    workflow_job = schedule.every(4).hours.do(run_workflow)
     logger.info("Workflow scheduled to run every 4 hours.")
+
+    if telegram_manager:
+        schedule.every().day.at("08:00").do(telegram_manager.send_daily_summary)
+        schedule.every().day.at("09:30").do(telegram_manager.send_market_open_notification)
+        schedule.every().day.at("16:00").do(telegram_manager.send_market_close_summary)
+        logger.info("Telegram notification jobs scheduled.")
+    
+    logger.success("All system schedules are configured.")
+
+def trigger_manual_workflow_and_reschedule():
+    """
+    Handles a manual trigger from Telegram. It runs the workflow
+    immediately and resets the timer for the next scheduled run.
+    """
+    global workflow_job
+    
+    logger.info("Manual workflow triggered via Telegram.")
+    
+    # Run the workflow with the manual flag
+    success = run_workflow(is_manual_trigger=True)
+    
+    if success:
+        logger.info("Resetting workflow schedule after manual run...")
+        schedule.cancel_job(workflow_job)
+        workflow_job = schedule.every(4).hours.do(run_workflow)
+        logger.success("Workflow schedule has been reset. Next run in 4 hours.")
+    else:
+        logger.fail("Manual workflow failed. Schedule not reset.")
+        
+    return success
 
 def run_scheduler():
     """Run the workflow scheduler in a separate thread."""
@@ -128,30 +177,27 @@ def main():
     """
     Main function to run the complete JMONEY system.
     """
+    global telegram_manager_instance
     load_dotenv()
     logger.start_section("JMONEY TRADING SYSTEM INITIALIZING")
     
-    # Initialize managers
     output_manager = OutputManager(credentials_path=os.getenv("GOOGLE_APPLICATION_CREDENTIALS"), sheet_name=os.getenv("SHEET_NAME"))
     portfolio_tracker = PortfolioTracker()
-    telegram_manager = create_telegram_manager(output_manager=output_manager)
+    telegram_manager_instance = create_telegram_manager(output_manager=output_manager)
 
-    # Run initial workflow
     run_workflow()
     
-    # Setup and run scheduler in background
-    setup_scheduled_workflow()
+    setup_schedules(telegram_manager_instance)
     scheduler_thread = threading.Thread(target=run_scheduler, daemon=True)
     scheduler_thread.start()
     logger.success("Scheduler started in background.")
     
-    # Start Telegram bot
-    if telegram_manager:
-        telegram_manager.bot.set_workflow_callback(run_workflow)
-        telegram_manager.bot.portfolio_tracker = portfolio_tracker
+    if telegram_manager_instance:
+        telegram_manager_instance.bot.set_workflow_callback(trigger_manual_workflow_and_reschedule)
+        telegram_manager_instance.bot.portfolio_tracker = portfolio_tracker
         logger.success("System is now running continuously!")
         logger.info("Send /start to your Telegram bot to begin.")
-        telegram_manager.bot.start_bot_polling()
+        telegram_manager_instance.bot.start_bot_polling()
         while True: time.sleep(1)
     else:
         logger.fail("Could not start Telegram bot. Exiting.")

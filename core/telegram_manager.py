@@ -1,13 +1,13 @@
 import asyncio
 import os
-from datetime import datetime, time
-import schedule
+from datetime import datetime
 from core.telegram_bot import JMoneyTelegramBot
 from typing import List, Dict
 
 class TelegramNotificationManager:
     """
-    Manages Telegram notifications and scheduling for the JMONEY system.
+    Manages Telegram notifications for the JMONEY system.
+    Scheduling is handled by the main application script.
     """
     
     def __init__(self, bot_token: str = None, chat_id: str = None, output_manager=None):
@@ -27,21 +27,8 @@ class TelegramNotificationManager:
             raise ValueError("Telegram bot token and chat ID are required. Set TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID in .env file.")
         
         self.bot = JMoneyTelegramBot(self.bot_token, self.chat_id, self.output_manager)
-        # Initialize the bot immediately and verify success
         if not self.bot.initialize():
             raise ValueError("Failed to initialize Telegram bot. Check your bot token and network connection.")
-        self.setup_schedule()
-
-    def setup_schedule(self):
-        """Set up scheduled notifications."""
-        # Daily summary at 8:00 AM
-        schedule.every().day.at("08:00").do(self.send_daily_summary)
-        
-        # Market open notification (9:30 AM EST)
-        schedule.every().day.at("09:30").do(self.send_market_open_notification)
-        
-        # Market close summary (4:00 PM EST)  
-        schedule.every().day.at("16:00").do(self.send_market_close_summary)
 
     async def send_signal_notification(self, signal: Dict):
         """
@@ -75,10 +62,12 @@ class TelegramNotificationManager:
 
     def send_daily_summary(self):
         """Send daily summary (called by scheduler)."""
-        asyncio.run(self.bot.send_daily_summary())
+        print("Sending daily summary via Telegram...")
+        self.bot.send_daily_summary({})
 
     def send_market_open_notification(self):
-        """Send market open notification."""
+        """Send market open notification (called by scheduler)."""
+        print("Sending market open notification...")
         message = """
 🔔 **MARKET OPEN NOTIFICATION**
 
@@ -89,11 +78,11 @@ class TelegramNotificationManager:
 
 Use `/signals` to view current opportunities.
         """
-        
-        asyncio.run(self._send_message(message))
+        self._send_message_sync(message)
 
     def send_market_close_summary(self):
-        """Send market close summary."""
+        """Send market close summary (called by scheduler)."""
+        print("Sending market close notification...")
         message = """
 🛑 **MARKET CLOSE SUMMARY**
 
@@ -105,13 +94,12 @@ Use `/signals` to view current opportunities.
 
 Use `/status` to view system performance.
         """
-        
-        asyncio.run(self._send_message(message))
+        self._send_message_sync(message)
 
-    async def _send_message(self, message: str):
-        """Helper method to send a simple message."""
+    def _send_message_sync(self, message: str):
+        """Helper method to send a simple message synchronously."""
         try:
-            await self.bot.application.bot.send_message(
+            self.bot.updater.bot.send_message(
                 chat_id=self.chat_id,
                 text=message,
                 parse_mode="Markdown"
@@ -145,33 +133,15 @@ Use `/status` to view system performance.
         """
         
         try:
-            await self.bot.application.bot.send_message(
+            # Note: This part might need adjustment if not run in an async context
+            # For now, using the synchronous bot instance directly
+            self.bot.updater.bot.send_message(
                 chat_id=self.chat_id,
                 text=alert_message,
                 parse_mode="Markdown"
             )
         except Exception as e:
             print(f"❌ Failed to send system alert: {e}")
-
-    def start_bot_background(self):
-        """Start the Telegram bot in the background."""
-        print("🚀 Starting Telegram bot in background mode...")
-        
-        import threading
-        bot_thread = threading.Thread(target=self.bot.start_bot_polling, daemon=True)
-        bot_thread.start()
-        
-        print("✅ Telegram bot started successfully!")
-        return bot_thread
-
-    def run_scheduler(self):
-        """Run the notification scheduler."""
-        print("⏰ Starting notification scheduler...")
-        
-        while True:
-            schedule.run_pending()
-            import time
-            time.sleep(60)  # Check every minute
 
     async def test_notification(self):
         """Send a test notification to verify setup."""
@@ -203,7 +173,7 @@ def create_telegram_manager(output_manager=None) -> TelegramNotificationManager:
         output_manager: OutputManager instance for accessing Google Sheets data
         
     Returns:
-        TelegramNotificationManager instance
+        TelegramNotificationManager instance or None on failure.
     """
     try:
         return TelegramNotificationManager(output_manager=output_manager)
