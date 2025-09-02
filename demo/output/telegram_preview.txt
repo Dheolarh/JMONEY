@@ -1,0 +1,82 @@
+--- Telegram Preview Log Generated at 2025-09-02 14:00:25.218787 ---
+
+🟡 JMONEY CONFIRMED: False
+
+• Ticker: AAPL
+• Source: Unknown
+• Strategy: Caution
+• Score: 6/10
+• Direction: Neutral
+• Entry: $187.20
+• Stop Loss: 183.87 (ref)
+• TP1 / TP2: 192.46 (ref) / 197.72 (ref)
+• TP Strategy: Monitor for signals (confidence: 5.8/10)
+• Macro Score: 8/10
+• Sentiment Score: 9/10
+• Catalyst: Earnings
+• ZS-10+ Score: 5/10
+• Not Confirmed: ❌ Failed: Tech score low: 4 (need ≥7.5)
+
+⏰ 14:00:25
+========================================
+
+🟡 JMONEY CONFIRMED: False
+
+• Ticker: PFE
+• Source: Unknown
+• Strategy: Neutral
+• Score: 6/10
+• Direction: Neutral
+• Entry: $30.90
+• Stop Loss: 29.76 (ref)
+• TP1 / TP2: 32.74 (ref) / 34.58 (ref)
+• TP Strategy: Monitor for signals (confidence: 6.2/10)
+• Macro Score: 7/10
+• Sentiment Score: 2/10
+• Catalyst: FDA
+• ZS-10+ Score: 5/10
+• Not Confirmed: ❌ Failed: Tech score low: 6 (need ≥7.5)
+
+⏰ 14:00:25
+========================================
+
+🟡 JMONEY CONFIRMED: False
+
+• Ticker: SHOP
+• Source: Unknown
+• Strategy: Neutral
+• Score: 5/10
+• Direction: Neutral
+• Entry: $74.50
+• Stop Loss: 73.52 (ref)
+• TP1 / TP2: 75.93 (ref) / 77.36 (ref)
+• TP Strategy: Monitor for signals (confidence: 4.6/10)
+• Macro Score: 5/10
+• Sentiment Score: 5/10
+• Catalyst: None
+• ZS-10+ Score: 5/10
+• Not Confirmed: ❌ Failed: Tech score low: 4 (need ≥7.5)
+
+⏰ 14:00:25
+========================================
+
+🟡 JMONEY CONFIRMED: False
+
+• Ticker: GME
+• Source: Unknown
+• Strategy: Neutral
+• Score: 4/10
+• Direction: Neutral
+• Entry: $194.80
+• Stop Loss: 186.35 (ref)
+• TP1 / TP2: 206.46 (ref) / 218.11 (ref)
+• TP Strategy: Monitor for signals (confidence: 3.8/10)
+• Macro Score: 3/10
+• Sentiment Score: 8/10
+• Catalyst: Insider
+• ZS-10+ Score: 5/10
+• Not Confirmed: ❌ Failed: Tech score low: 4 (need ≥7.5)
+
+⏰ 14:00:25
+========================================
+

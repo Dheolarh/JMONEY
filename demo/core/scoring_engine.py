@@ -1,0 +1,200 @@
+import pandas as pd
+import numpy as np
+from .ai_analyzer import AIAnalyzer
+import os
+
+from dotenv import load_dotenv
+load_dotenv()
+
+class ScoringEngine:
+    """
+    Calculates various scores for a given asset based on its market data and catalyst.
+    Uses simple technical analysis functions for better compatibility.
+    """
+    def __init__(self, analyzer=None):
+        import os
+        if analyzer:
+            self.analyzer = analyzer
+        else:
+            testing_mode = os.getenv("TESTING_MODE", "false").lower() == "true"
+            gemini_api_key = os.getenv("GEMINI_API_KEY")
+            openai_api_key = os.getenv("OPENAI_KEY")
+            if testing_mode:
+                if not gemini_api_key:
+                    raise ValueError("TESTING_MODE is enabled but no GEMINI_API_KEY found for scoring engine")
+                self.analyzer = AIAnalyzer(
+                    api_key=gemini_api_key,
+                    prompts_path=os.getenv("PROMPTS_PATH", "config/prompts.json"),
+                    provider="gemini"
+                )
+            else:
+                if openai_api_key:
+                    self.analyzer = AIAnalyzer(
+                        api_key=openai_api_key,
+                        prompts_path=os.getenv("PROMPTS_PATH", "config/prompts.json"),
+                        provider="openai"
+                    )
+                elif gemini_api_key:
+                    self.analyzer = AIAnalyzer(
+                        api_key=gemini_api_key,
+                        prompts_path=os.getenv("PROMPTS_PATH", "config/prompts.json"),
+                        provider="gemini"
+                    )
+                else:
+                    raise ValueError("No AI API key found for scoring engine")
+
+    def _calculate_rsi(self, prices: pd.Series, period: int = 14) -> pd.Series:
+        """Calculate RSI (Relative Strength Index)."""
+        delta = prices.diff()
+        gain = (delta.where(delta > 0, 0)).rolling(window=period).mean()
+        loss = (-delta.where(delta < 0, 0)).rolling(window=period).mean()
+        rs = gain / loss
+        rsi = 100 - (100 / (1 + rs))
+        return rsi
+
+    def _calculate_macd(self, prices: pd.Series, fast: int = 12, slow: int = 26, signal: int = 9) -> dict:
+        """Calculate MACD (Moving Average Convergence Divergence)."""
+        exp1 = prices.ewm(span=fast).mean()
+        exp2 = prices.ewm(span=slow).mean()
+        macd_line = exp1 - exp2
+        signal_line = macd_line.ewm(span=signal).mean()
+        histogram = macd_line - signal_line
+        
+        return {
+            'macd': macd_line,
+            'signal': signal_line,
+            'histogram': histogram
+        }
+
+    def _calculate_sma(self, prices: pd.Series, period: int) -> pd.Series:
+        """Calculate Simple Moving Average."""
+        return prices.rolling(window=period).mean()
+
+    def _calculate_bollinger_bands(self, prices: pd.Series, period: int = 20, std_dev: int = 2) -> dict:
+        """Calculate Bollinger Bands."""
+        sma = prices.rolling(window=period).mean()
+        std = prices.rolling(window=period).std()
+        upper_band = sma + (std * std_dev)
+        lower_band = sma - (std * std_dev)
+        return {'upper': upper_band, 'middle': sma, 'lower': lower_band}
+
+    def _calculate_atr(self, high: pd.Series, low: pd.Series, close: pd.Series, period: int = 14) -> pd.Series:
+        """Calculate Average True Range."""
+        high_low = high - low
+        high_close = np.abs(high - close.shift())
+        low_close = np.abs(low - close.shift())
+        
+        true_range = pd.concat([high_low, high_close, low_close], axis=1).max(axis=1)
+        atr = true_range.rolling(window=period).mean()
+        return atr
+
+    def calculate_technical_score(self, market_data: pd.DataFrame) -> int:
+        """
+        Calculate technical score using indicators.
+        """
+        if market_data is None or len(market_data) < 50:
+            print("    ...insufficient data for technical analysis")
+            return 0
+        
+        try:
+            score = 5  # Base score
+            
+            close_col = 'Close' if 'Close' in market_data.columns else 'close'
+            close_prices = market_data[close_col]
+            
+            # RSI Analysis
+            rsi = self._calculate_rsi(close_prices)
+            current_rsi = rsi.iloc[-1]
+            if not pd.isna(current_rsi):
+                if current_rsi > 70: score -= 2
+                elif current_rsi < 30: score += 2
+                elif 40 <= current_rsi <= 60: score += 1
+            
+            # MACD Analysis
+            macd_data = self._calculate_macd(close_prices)
+            if not pd.isna(macd_data['macd'].iloc[-1]) and not pd.isna(macd_data['signal'].iloc[-1]):
+                if macd_data['macd'].iloc[-1] > macd_data['signal'].iloc[-1]: score += 1.5
+                else: score -= 1.5
+            
+            # Bollinger Bands Analysis
+            bbands = self._calculate_bollinger_bands(close_prices)
+            current_price = close_prices.iloc[-1]
+            if not pd.isna(bbands['upper'].iloc[-1]) and not pd.isna(bbands['lower'].iloc[-1]):
+                if current_price > bbands['upper'].iloc[-1]: score -= 1 # Potentially overbought
+                elif current_price < bbands['lower'].iloc[-1]: score += 1 # Potentially oversold
+            
+            # Moving Average Analysis
+            if len(close_prices) >= 200:
+                ma_50 = self._calculate_sma(close_prices, 50).iloc[-1]
+                ma_200 = self._calculate_sma(close_prices, 200).iloc[-1]
+                if not pd.isna(ma_50) and not pd.isna(ma_200):
+                    if ma_50 > ma_200: score += 1.5
+                    else: score -= 1.5
+            
+            final_score = max(0, min(10, round(score)))
+            print(f"    ...calculated Technical Score: {final_score}/10")
+            return final_score
+            
+        except Exception as e:
+            print(f"    ...error calculating technical score: {e}")
+            return 5
+
+    def calculate_zs10_score(self, market_data: pd.DataFrame) -> int:
+        """
+        Calculate ZS-10+ score for trap detection.
+        """
+        if market_data is None or len(market_data) < 20:
+            print("    ...insufficient data for ZS-10+ analysis")
+            return 5
+        
+        try:
+            volume_col = next((col for col in market_data.columns if col.lower() in ['volume', 'vol']), None)
+            close_col = next((col for col in market_data.columns if col.lower() in ['close', 'adj close']), market_data.columns[-1])
+            close_prices = market_data[close_col]
+            
+            if volume_col:
+                volume = market_data[volume_col]
+                recent_volume_avg = volume.tail(5).mean()
+                historical_volume_avg = volume.tail(20).mean()
+                volume_ratio = recent_volume_avg / historical_volume_avg if historical_volume_avg > 0 else 1
+                recent_price_change = (close_prices.iloc[-1] - close_prices.iloc[-5]) / close_prices.iloc[-5]
+                
+                score = 8 if volume_ratio < 0.6 and recent_price_change > 0.03 else \
+                        6 if volume_ratio < 0.8 and recent_price_change > 0.02 else \
+                        2 if volume_ratio > 1.5 and recent_price_change > 0.01 else \
+                        3 if volume_ratio > 1.2 and recent_price_change > 0 else \
+                        4 if abs(recent_price_change) < 0.01 else 5
+                print(f"    ...calculated ZS-10+ Score: {score}/10 (Volume ratio: {volume_ratio:.2f}, Price change: {recent_price_change:.3f})")
+            else:
+                price_volatility = close_prices.tail(10).std() / close_prices.tail(10).mean()
+                score = 7 if price_volatility > 0.05 else 3 if price_volatility < 0.02 else 5
+                print(f"    ...calculated ZS-10+ Score: {score}/10 (Price-only analysis, volatility: {price_volatility:.3f})")
+            return score
+            
+        except Exception as e:
+            print(f"    ...error calculating ZS-10+ score: {e}")
+            return 5
+
+    def calculate_all_scores(self, enriched_assets: list[dict]) -> list[dict]:
+        """Calculates all scores for a list of enriched assets."""
+        scored_assets = []
+        for asset in enriched_assets:
+            print(f"--> Scoring asset: {asset.get('ticker')}")
+            market_data = asset.get('market_data')
+
+            asset['technical_score'] = self.calculate_technical_score(market_data)
+            asset['zs10_score'] = self.calculate_zs10_score(market_data)
+
+            ai_scores = self.analyzer.get_detailed_scores(
+                ticker=asset.get('ticker'),
+                catalyst_headline=asset.get('catalyst')
+            )
+            
+            asset.update({
+                'macro_score': ai_scores.get('macro_score', 5),
+                'sentiment_score': ai_scores.get('sentiment_score', 5),
+                'catalyst_type': ai_scores.get('catalyst_type', 'None')
+            })
+            scored_assets.append(asset)
+        
+        return scored_assets
