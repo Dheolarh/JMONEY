@@ -24,7 +24,7 @@ def run_demo_workflow():
 
     # --- STEP 2: Identify assets using AI (from local file) ---
     logger.start_section("STEP 2: AI ASSET IDENTIFICATION (DEMO)")
-    # REMOVED "demo/" prefix
+    # UPDATED path to mock_ai_responses.json
     analyzer = AIAnalyzer(api_key="demo", prompts_path="data/mock_ai_responses.json")
     identified_assets = analyzer.identify_assets_from_headlines(headlines_with_sources)
     logger.success(f"AI identified {len(identified_assets)} potential assets from mock data.")

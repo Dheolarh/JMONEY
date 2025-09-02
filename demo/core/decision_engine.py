@@ -61,23 +61,23 @@ class DecisionEngine:
         strategy = "Neutral"
         signal = "Hold"
         reasoning = []
+
         if zs10_score >= 7:
-            strategy, signal = "Short / Avoid", "Avoid"
+            strategy, signal = "Caution", "Avoid"
             reasoning.append("High trap risk detected")
-        elif catalyst.lower() in ["fed", "earnings", "cpi", "jobs"] and zs10_score < 5:
-            strategy, signal = "Boost", "Buy" if tech_score >= 6 else "Sell"
+        elif catalyst.lower() != "none" and zs10_score < 5:
+            strategy, signal = "Boost", "Buy" if sentiment_score >= 5 else "Sell"
             reasoning.append(f"Catalyst detected: {catalyst}")
-        elif tech_score >= 8 and macro_score >= 6 and zs10_score < 4:
-            strategy, signal = "Zen", "Buy" if tech_score >= 8 else "Sell"
+        elif tech_score >= 7 and macro_score >= 6 and zs10_score < 4:
+            strategy, signal = "Zen", "Buy"
             reasoning.append("Strong technical and macro confirmation")
         elif tech_score < 5 and macro_score < 5:
             strategy, signal = "Neutral", "Hold"
             reasoning.append("Weak technical and macro scores")
-        elif sentiment_score > 8 and 4 <= zs10_score < 7:
-            strategy, signal = "Caution", "Hold"
-            reasoning.append("High retail sentiment with moderate trap risk")
         else:
+            strategy, signal = "Neutral", "Hold"
             reasoning.append("No clear signal")
+            
         asset['strategy'], asset['signal'], asset['reasoning'] = strategy, signal, "; ".join(reasoning)
         return asset
 

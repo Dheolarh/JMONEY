@@ -24,10 +24,8 @@ class AIAnalyzer:
         print("--> Retrieving mock asset identification...")
         assets = self.mock_responses.get("identify_assets", [])
         for asset in assets:
-            catalyst = asset.get('catalyst', '')
-            source_match = re.match(r'\[(.*?)\]', catalyst)
-            if source_match:
-                asset['source'] = source_match.group(1)
+            # Assign a mock source for the demo
+            asset['source'] = "CoinDesk"
         return assets
 
     def get_ticker_details(self, ticker: str) -> dict:
