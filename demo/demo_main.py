@@ -99,7 +99,7 @@ def run_demo_workflow():
 
     logger.start_section("STEP 8: BACKTESTING")
     time.sleep(1)
-    run_backtest_and_generate_outputs()
+    run_backtest_and_generate_outputs()  # Remove the argument here
     logger.success("Backtest complete. Results are in the /output/ folder.")
 
     logger.start_section("DEMO WORKFLOW FINISHED")
