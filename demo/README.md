@@ -19,7 +19,8 @@ pip install -r requirements.txt
 This script simulates the core logic: scanning news, analyzing assets,scoring, and generating signals. It will create an output folder with the results.
 
 ```sh
-python demo/demo_main.py
-python demo/run_backtest.py
+cd demo
+python demo_main.py
+python run_backtest.py
 ```
 

@@ -8,9 +8,9 @@ def run_backtest_and_generate_outputs():
     """
     print("\n--- Running Backtest on Demo Signals ---")
     try:
-        signals_df = pd.read_csv("demo/output/signals.csv")
+        signals_df = pd.read_csv("output/signals.csv")
     except FileNotFoundError:
-        print("❌ Error: 'demo/output/signals.csv' not found. Run 'demo_main.py' first.")
+        print("❌ Error: 'output/signals.csv' not found. Run 'demo_main.py' first.")
         return
 
     initial_capital = 10000
@@ -55,13 +55,13 @@ def run_backtest_and_generate_outputs():
         "net_profit": round(equity[-1] - initial_capital, 2),
         "net_profit_pct": f"{(((equity[-1] - initial_capital) / initial_capital) * 100):.2f}%"
     }
-    with open("demo/output/summary.json", 'w') as f:
+    with open("output/summary.json", 'w') as f:
         json.dump(summary, f, indent=2)
     print("✅ summary.json created.")
 
     # 2. Trades CSV
     trades_df = pd.DataFrame(trades)
-    trades_df.to_csv("demo/output/trades.csv", index=False)
+    trades_df.to_csv("output/trades.csv", index=False)
     print("✅ trades.csv created.")
 
     # 3. Equity Curve PNG
