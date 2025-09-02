@@ -20,6 +20,7 @@ class OutputManager:
     def export_signals_to_files(self, signals: list[dict]):
         """
         Exports the final signals to signals.csv and signals.json.
+        Appends to CSV if it already exists.
         """
         if not signals:
             print("No signals to export.")
@@ -53,12 +54,16 @@ class OutputManager:
 
         df = pd.DataFrame(data_to_export)
 
-        # Save to CSV
+        # Save to CSV (append if exists)
         csv_path = os.path.join(self.output_path, "signals.csv")
-        df.to_csv(csv_path, index=False)
-        print(f"    ...signals.csv saved.")
+        if os.path.exists(csv_path):
+            df.to_csv(csv_path, mode='a', header=False, index=False)
+            print(f"    ...appended {len(df)} signals to signals.csv.")
+        else:
+            df.to_csv(csv_path, index=False)
+            print(f"    ...signals.csv created.")
 
-        # Save to JSON
+        # Save to JSON (overwrite with latest full data for simplicity)
         json_path = os.path.join(self.output_path, "signals.json")
         df.to_json(json_path, orient='records', indent=2)
-        print(f"    ...signals.json saved.")
+        print(f"    ...signals.json updated.")

@@ -1,0 +1,82 @@
+--- Telegram Preview Log Generated at 2025-09-02 16:47:03.918393 ---
+
+🟢 JMONEY CONFIRMED: True
+
+• Ticker: AAPL
+• Source: CoinDesk
+• Strategy: Boost
+• Score: 8/10
+• Direction: Long
+• Entry: $187.20
+• Stop Loss: $183.58
+• TP1 / TP2: 193.56 (3.4%) / 199.93 (6.8%)
+• TP Strategy: TP1 50% / TP2 50%
+• Macro Score: 8/10
+• Sentiment Score: 9/10
+• Catalyst: Earnings
+• ZS-10+ Score: 4/10
+• Confirmation: ✅ Boost: Tech score: 8/10, Macro score: 8/10
+
+⏰ 16:47:03
+========================================
+
+🔴 JMONEY CONFIRMED: True
+
+• Ticker: PFE
+• Source: CoinDesk
+• Strategy: Boost
+• Score: 8/10
+• Direction: Short
+• Entry: $30.90
+• Stop Loss: $32.11
+• TP1 / TP2: 28.77 (6.9%) / 26.64 (13.8%)
+• TP Strategy: TP1 50% / TP2 50%
+• Macro Score: 7/10
+• Sentiment Score: 2/10
+• Catalyst: FDA
+• ZS-10+ Score: 2/10
+• Confirmation: ✅ Boost: Tech score: 8/10, Macro score: 7/10
+
+⏰ 16:47:03
+========================================
+
+🟡 JMONEY CONFIRMED: False
+
+• Ticker: SHOP
+• Source: CoinDesk
+• Strategy: Neutral
+• Score: 4/10
+• Direction: Neutral
+• Entry: $74.50
+• Stop Loss: 73.53 (ref)
+• TP1 / TP2: 75.9 (ref) / 77.29 (ref)
+• TP Strategy: Monitor for signals (confidence: 4.4/10)
+• Macro Score: 4/10
+• Sentiment Score: 5/10
+• Catalyst: None
+• ZS-10+ Score: 4/10
+• Not Confirmed: ❌ Failed: Tech score low: 4 (need ≥7.5)
+
+⏰ 16:47:03
+========================================
+
+⚪ JMONEY CONFIRMED: False
+
+• Ticker: GME
+• Source: CoinDesk
+• Strategy: Caution
+• Score: 4/10
+• Direction: Neutral
+• Entry: $194.80
+• Stop Loss: 186.44 (ref)
+• TP1 / TP2: 206.17 (ref) / 217.53 (ref)
+• TP Strategy: Monitor for signals (confidence: 3.6/10)
+• Macro Score: 3/10
+• Sentiment Score: 8/10
+• Catalyst: Insider
+• ZS-10+ Score: 8/10
+• Not Confirmed: ❌ Failed: Tech score low: 5 (need ≥7.5)
+
+⏰ 16:47:03
+========================================
+

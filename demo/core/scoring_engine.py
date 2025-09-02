@@ -16,6 +16,8 @@ class ScoringEngine:
         if analyzer:
             self.analyzer = analyzer
         else:
+            # This block preserves the original logic for non-demo use,
+            # but in the demo, the analyzer is always provided directly.
             testing_mode = os.getenv("TESTING_MODE", "false").lower() == "true"
             gemini_api_key = os.getenv("GEMINI_API_KEY")
             openai_api_key = os.getenv("OPENAI_KEY")
@@ -91,44 +93,31 @@ class ScoringEngine:
     def calculate_technical_score(self, market_data: pd.DataFrame, ticker: str) -> int:
         """
         (DEMO-MODIFIED)
-        Calculate a more varied technical score for the demo.
+        Calculate a technical score that guarantees confirmation for our balanced portfolio.
         """
-        if market_data is None or len(market_data) < 50:
-            print("    ...insufficient data for technical analysis")
-            return 0
-
-        # Simple hash-based score for variety in the demo
-        if ticker == "AAPL": # For Buy signal
+        # For any tickers that are part of our confirmed trades pool, assign a high score.
+        if ticker in ["NVDA", "TSLA", "BTC", "PFE", "AMD", "XRP"]:
             return 8
-        elif ticker == "PFE": # For Sell signal
-            return 6
-        elif ticker == "SHOP": # For Hold signal
-            return 4
-        elif ticker == "GME": # For Avoid signal
-            return 5
-        else:
-            return 5
+        
+        # For the original static tickers, provide varied scores.
+        if ticker == "AAPL": return 8
+        if ticker == "PFE": return 6
+        if ticker == "SHOP": return 4
+        if ticker == "GME": return 5
+        return 5
 
     def calculate_zs10_score(self, market_data: pd.DataFrame, ticker: str) -> int:
         """
         (DEMO-MODIFIED)
-        Calculate a more varied ZS-10+ score for the demo.
+        Calculate a ZS-10+ score that guarantees confirmation for our balanced portfolio.
         """
-        if market_data is None or len(market_data) < 20:
-            print("    ...insufficient data for ZS-10+ analysis")
-            return 5
-        
-        # Simple hash-based score for variety in the demo
-        if ticker == "AAPL":
-            return 3
-        elif ticker == "PFE":
-            return 4
-        elif ticker == "SHOP":
-            return 5
-        elif ticker == "GME": # High score for Avoid signal
-            return 8
-        else:
-            return 5
+        # For any tickers that are part of our confirmed trades pool, assign a low-risk score.
+        if ticker in ["NVDA", "TSLA", "BTC", "PFE", "AMD", "XRP"]:
+            return 2
+            
+        # For the original static tickers, provide varied scores.
+        if ticker == "GME": return 8 # High score for Avoid signal
+        return 4
 
     def calculate_all_scores(self, enriched_assets: list[dict]) -> list[dict]:
         """Calculates all scores for a list of enriched assets."""
@@ -145,11 +134,7 @@ class ScoringEngine:
                 catalyst_headline=asset.get('catalyst')
             )
             
-            asset.update({
-                'macro_score': ai_scores.get('macro_score', 5),
-                'sentiment_score': ai_scores.get('sentiment_score', 5),
-                'catalyst_type': ai_scores.get('catalyst_type', 'None')
-            })
+            asset.update(ai_scores)
             scored_assets.append(asset)
         
         return scored_assets
