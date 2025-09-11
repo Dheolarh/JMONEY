@@ -244,12 +244,6 @@ py -3.10 main.py
 C:/path/to/python310/python.exe main.py
 ```
 
-**Windows Users:** Use the included `run.bat` file for easy execution:
-```bash
-# Simply run
-run.bat
-```
-
 ### 📦 **Dependency Notes**
 - `python-telegram-bot==13.15` is pinned due to API changes in v20+
 - `urllib3==1.26.15` is pinned to resolve telegram bot conflicts
@@ -474,8 +468,7 @@ JMONEY/
 │
 ├── 📄 main.py                    # Main application entry point
 ├── 📄 requirements.txt           # Python dependencies
-├── 📄 run.bat                    # Windows execution script
-├── 📄 .env.template              # Environment configuration template
+├── 📄 .env.example              # Environment configuration template
 ├── 📄 .env                       # Your API keys and settings
 ├── 📄 README.md                  # This documentation
 ├── 📄 deployments.json           # Deployment configurations
