@@ -3,19 +3,21 @@ import pandas as pd
 from datetime import datetime
 from .data_fetcher import DataFetcher
 from .ai_analyzer import AIAnalyzer # Add this import
+from .output_manager import OutputManager
 import os
+from utils.logger import logger
 
 class PortfolioTracker:
     """
     Tracks the performance of trading signals over time.
     """
-    def __init__(self, portfolio_path: str = "data/portfolio.json"):
+    def __init__(self, portfolio_path: str = "data/portfolio.json", output_manager: OutputManager = None):
         """
         Initializes the PortfolioTracker.
         """
         self.portfolio_path = portfolio_path
         self.data_fetcher = DataFetcher()
-        
+
         # Add these lines to initialize the AI Analyzer
         api_key = os.getenv("OPENAI_KEY") or os.getenv("GEMINI_API_KEY")
         if not api_key:
@@ -30,8 +32,22 @@ class PortfolioTracker:
         portfolio_dir = os.path.dirname(self.portfolio_path)
         if portfolio_dir:
             os.makedirs(portfolio_dir, exist_ok=True)
-        
+
         self.portfolio = self._load_portfolio()
+
+        # attach output manager if provided or via env
+        if output_manager:
+            self.output_manager = output_manager
+        else:
+            try:
+                creds = os.getenv('GOOGLE_APPLICATION_CREDENTIALS')
+                sheet = os.getenv('SHEET_NAME')
+                if creds and sheet:
+                    self.output_manager = OutputManager(credentials_path=creds, sheet_name=sheet)
+                else:
+                    self.output_manager = None
+            except Exception:
+                self.output_manager = None
 
     def _load_portfolio(self) -> dict:
         """Loads the portfolio from a JSON file, creating it if it doesn't exist."""
@@ -76,6 +92,11 @@ class PortfolioTracker:
             "entry_price": entry_price,
             "stop_loss": stop_loss,
             "take_profit": take_profit,
+            # detailed confirmation fields
+            "technical_score": signal.get('technical_score'),
+            "macro_score": signal.get('macro_score'),
+            "zs10_score": signal.get('zs10_score') or signal.get('zs10'),
+            "catalyst": bool(signal.get('catalyst') or signal.get('catalyst_type') or False),
             "status": "open",
             "open_date": datetime.now().isoformat(),
             "close_date": None,
@@ -83,6 +104,38 @@ class PortfolioTracker:
         }
         self.portfolio["trades"].append(trade)
         self._save_portfolio()
+        # Log and persist confirmation summary
+        confirmation_line = f"{trade['ticker']} → Tech: {trade.get('technical_score', 'N/A')} | Macro: {trade.get('macro_score', 'N/A')} | ZS10: {trade.get('zs10_score', 'N/A')} | Catalyst: {trade.get('catalyst', False)} → Confirmed"
+        logger.success(confirmation_line)
+
+        # Write to local confirmation log
+        try:
+            os.makedirs('logs', exist_ok=True)
+            with open('logs/jmoney_confirmations.log', 'a', encoding='utf-8') as f:
+                f.write(f"{datetime.now().isoformat()} - {confirmation_line}\n")
+        except Exception:
+            pass
+
+        # Write to Google Sheets confirmations worksheet if available
+        try:
+            if self.output_manager:
+                row = {
+                    'Timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+                    'Ticker': trade['ticker'],
+                    'Technical Score': trade.get('technical_score', 'N/A'),
+                    'Macro Score': trade.get('macro_score', 'N/A'),
+                    'ZS10 Score': trade.get('zs10_score', 'N/A'),
+                    'Catalyst': trade.get('catalyst', False),
+                    'Confirmed': True,
+                    'Reason': signal.get('confirmation_reason', '')
+                }
+                try:
+                    self.output_manager.write_confirmation(row)
+                except Exception:
+                    pass
+        except Exception:
+            pass
+
         print(f"    ...added trade for {trade['ticker']} to portfolio.")
 
     def update_open_trades(self):

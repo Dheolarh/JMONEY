@@ -19,10 +19,12 @@ class AIAnalyzer:
         self.prompts = self._load_prompts(prompts_path)
         self.asset_type_cache = {} # Add this line
         if testing_mode:
-            if not api_key:
-                raise ValueError("Gemini API key is required.")
+            # When in testing mode, use Gemini and get the Gemini API key from environment
+            gemini_key = os.getenv("GEMINI_API_KEY")
+            if not gemini_key:
+                raise ValueError("TESTING_MODE is enabled but GEMINI_API_KEY not found.")
             self.provider = "gemini"
-            genai.configure(api_key=api_key)
+            genai.configure(api_key=gemini_key)
             self.model_name = model_name or "gemini-1.5-flash"
             self.client = genai.GenerativeModel(self.model_name)
         else:

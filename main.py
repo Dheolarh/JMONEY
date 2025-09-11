@@ -31,8 +31,12 @@ def run_workflow(is_manual_trigger=False):
         
         openai_key = os.getenv("OPENAI_KEY")
         gemini_key = os.getenv("GEMINI_API_KEY")
+        testing_mode = os.getenv("TESTING_MODE", "false").lower() == "true"
         
-        if openai_key:
+        if testing_mode and gemini_key:
+            ai_provider, ai_api_key = "gemini", gemini_key
+            logger.info("Using Gemini for AI analysis (TESTING_MODE enabled)")
+        elif openai_key:
             ai_provider, ai_api_key = "openai", openai_key
             logger.info("Using OpenAI for AI analysis")
         elif gemini_key:
@@ -130,6 +134,18 @@ def run_workflow(is_manual_trigger=False):
             telegram_manager_instance._send_message_sync(message)
         return False
 
+def flush_metrics_job(output_manager):
+    """Flush in-memory metrics to Google Sheets (or log) via OutputManager."""
+    try:
+        metrics = logger.get_metrics()
+        if not metrics:
+            logger.info('No metrics to flush')
+            return
+        output_manager.write_metrics(metrics)
+        logger.success('Metrics flushed to output manager')
+    except Exception as e:
+        logger.fail(f'Failed to flush metrics: {e}')
+
 def setup_schedules(telegram_manager):
     """Setup all scheduled jobs for the system."""
     global workflow_job
@@ -138,6 +154,14 @@ def setup_schedules(telegram_manager):
     
     workflow_job = schedule.every(4).hours.do(run_workflow)
     logger.info("Workflow scheduled to run every 4 hours.")
+
+    # Schedule metrics flush once per day at 00:05
+    try:
+        output_manager = OutputManager(credentials_path=os.getenv("GOOGLE_APPLICATION_CREDENTIALS"), sheet_name=os.getenv("SHEET_NAME"))
+        schedule.every().day.at("00:05").do(lambda: flush_metrics_job(output_manager))
+        logger.info('Scheduled metrics flush job at 00:05 UTC local time')
+    except Exception as e:
+        logger.info(f'Could not schedule metrics flush: {e}')
 
     if telegram_manager:
         schedule.every().day.at("08:00").do(telegram_manager.send_daily_summary)
@@ -172,7 +196,13 @@ def trigger_manual_workflow_and_reschedule():
 def run_scheduler():
     """Run the workflow scheduler in a separate thread."""
     while True:
-        schedule.run_pending()
+        try:
+            schedule.run_pending()
+        except Exception as e:
+            # Keep the scheduler running even if a scheduled job raises
+            logger.fail(f"Scheduler error: {e}")
+            import traceback
+            traceback.print_exc()
         time.sleep(60)
 
 def main():
@@ -214,8 +244,50 @@ def main():
         telegram_manager_instance.bot.portfolio_tracker = portfolio_tracker
         logger.success("System is now running continuously!")
         logger.info("Send /start to your Telegram bot to begin.")
-        telegram_manager_instance.bot.start_bot_polling()
-        while True: time.sleep(1)
+
+        # Resilient bot loop: restart bot on unexpected exceptions so the system stays online.
+        while True:
+            try:
+                # Start polling (this should block until an exception/stop)
+                telegram_manager_instance.bot.start_bot_polling()
+
+                # Keep main thread alive while bot is running
+                while True:
+                    time.sleep(1)
+
+            except KeyboardInterrupt:
+                logger.info("KeyboardInterrupt received - stopping bot and exiting main loop.")
+                try:
+                    telegram_manager_instance.bot.stop_bot()
+                except Exception:
+                    pass
+                break
+
+            except Exception as e:
+                logger.fail(f"Telegram bot crashed: {e}")
+                import traceback
+                traceback.print_exc()
+
+                # Attempt graceful stop
+                try:
+                    telegram_manager_instance.bot.stop_bot()
+                except Exception:
+                    pass
+
+                # Backoff before restart
+                logger.info("Restarting bot and ensuring scheduler is running in 5 seconds...")
+                time.sleep(5)
+
+                # Restart scheduler thread if it died
+                try:
+                    if 'scheduler_thread' in locals() and not scheduler_thread.is_alive():
+                        scheduler_thread = threading.Thread(target=run_scheduler, daemon=True)
+                        scheduler_thread.start()
+                        logger.success("Scheduler restarted.")
+                except Exception:
+                    logger.fail("Failed to restart scheduler thread.")
+                # Loop will retry starting the bot
+                continue
     else:
         logger.fail("Could not start Telegram bot. Exiting.")
 

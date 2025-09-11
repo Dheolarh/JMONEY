@@ -1,6 +1,7 @@
 *.json
 !config/*.json
 __pycache__/
+.pytest_cache/
 *.pyc
 *.pyo
 *.pyd

@@ -1,4 +1,5 @@
 import pandas as pd
+import os
 from .data_fetcher import DataFetcher
 from .output_manager import OutputManager
 import numpy as np
@@ -53,7 +54,7 @@ class Backtester:
                 skipped += 1
                 continue
     
-            pnl_pct = self._simulate_trade(data, entry_price, sl, tp, direction, transaction_cost_pct, slippage_pct)
+            pnl_pct = self._simulate_trade(data, entry_price, sl, tp, direction, transaction_cost_pct, slippage_pct, risk_amount_per_trade)
             
             if pnl_pct is not None:
                 results.append(pnl_pct)
@@ -87,24 +88,94 @@ class Backtester:
         }
 
     def _simulate_trade(self, market_data: pd.DataFrame, entry: float, sl: float, tp: float, signal: str, 
-                        transaction_cost_pct: float, slippage_pct: float) -> float | None:
+                        transaction_cost_pct: float, slippage_pct: float, risk_amount: float) -> float | None:
+        """Simulate trade over candles and return profit as percent of provided risk_amount.
+
+        Uses per-trade position sizing based on risk_amount and risk_per_share.
+        Applies slippage and commission on entry and exit. Handles intra-candle SL/TP with configurable precedence.
+        """
         signal = signal.lower()
-        entry_price_with_slippage = entry * (1 + slippage_pct) if signal == 'buy' else entry * (1 - slippage_pct)
-        risk_per_share = abs(entry_price_with_slippage - sl)
-        
-        if risk_per_share == 0: return 0.0
+
+        # Determine effective entry price after slippage
+        if signal == 'buy':
+            entry_effective = entry * (1 + slippage_pct)
+        else:  # sell
+            entry_effective = entry * (1 - slippage_pct)
+
+        risk_per_share = abs(entry_effective - sl)
+        if risk_per_share == 0:
+            return 0.0
+
+        # position size in shares based on risk allocated
+        position_size = risk_amount / risk_per_share
+
+        # precedence for intra-candle: stop-loss before take-profit when both hit (conservative)
+        sl_before_tp = os.environ.get('BACKTEST_SL_BEFORE_TP', 'true').lower() in ('1', 'true', 'yes')
 
         for index, row in market_data.iterrows():
+            low = row.get('Low', row.get('low'))
+            high = row.get('High', row.get('high'))
+
+            try:
+                low = float(low)
+                high = float(high)
+            except Exception:
+                continue
+
+            exit_price = None
+            exit_type = None
+
             if signal == 'buy':
-                if row['Low'] <= sl:
-                    return -100.0
-                if row['High'] >= tp:
-                    reward_per_share = abs(tp - entry_price_with_slippage)
-                    return (reward_per_share / risk_per_share) * 100
+                hit_sl = low <= sl
+                hit_tp = high >= tp
+                if hit_sl and hit_tp:
+                    exit_type = 'sl' if sl_before_tp else 'tp'
+                elif hit_sl:
+                    exit_type = 'sl'
+                elif hit_tp:
+                    exit_type = 'tp'
+                else:
+                    exit_type = None
+
+                if exit_type == 'sl':
+                    exit_price = sl
+                elif exit_type == 'tp':
+                    exit_price = tp
+
             elif signal == 'sell':
-                if row['High'] >= sl:
-                    return -100.0
-                if row['Low'] <= tp:
-                    reward_per_share = abs(entry_price_with_slippage - tp)
-                    return (reward_per_share / risk_per_share) * 100
+                hit_sl = high >= sl
+                hit_tp = low <= tp
+                if hit_sl and hit_tp:
+                    exit_type = 'sl' if sl_before_tp else 'tp'
+                elif hit_sl:
+                    exit_type = 'sl'
+                elif hit_tp:
+                    exit_type = 'tp'
+                else:
+                    exit_type = None
+
+                if exit_type == 'sl':
+                    exit_price = sl
+                elif exit_type == 'tp':
+                    exit_price = tp
+
+            if exit_price is not None:
+                # apply slippage to exit (adverse for the trader)
+                if signal == 'buy':
+                    exit_effective = exit_price * (1 - slippage_pct)
+                    profit_per_share = exit_effective - entry_effective
+                else:  # sell
+                    exit_effective = exit_price * (1 + slippage_pct)
+                    profit_per_share = entry_effective - exit_effective
+
+                # commission applied on both entry and exit (as absolute value)
+                commission_total = transaction_cost_pct * (abs(entry_effective) + abs(exit_effective)) * position_size
+
+                profit_dollars = (profit_per_share * position_size) - commission_total
+
+                # return percent relative to the risk amount provided
+                pnl_pct = (profit_dollars / risk_amount) * 100.0
+                return pnl_pct
+
+        # If neither SL nor TP hit in dataset, assume flat (zero) P&L
         return 0.0
